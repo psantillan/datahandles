@@ -1,5 +1,7 @@
 """The git adapter: a repository that is not a dataset, through the same handles, grants, and derived handles."""
 import subprocess
+import threading
+import time
 
 import pytest
 
@@ -81,11 +83,15 @@ def test_a_path_cannot_leave_the_repository_or_pass_as_an_option(tmp_path, repo,
     assert e.value.code == "INVALID_INPUT"
 
 
-def test_a_cancel_kills_the_git_process(repo):
+def test_a_cancel_kills_the_git_process(repo, monkeypatch):
     adapter = Adapter()
     ref = adapter.open({"path": str(repo)})
+    real = subprocess.Popen
+    # A git call that would take 30 s: the process is `sleep 30` in place of git.
+    monkeypatch.setattr("datahandles.adapters.git.subprocess.Popen", lambda args, **kw: real(["sleep", "30"], **kw))
     call = Call()
-    call.cancel("cancel")
+    threading.Timer(0.2, call.cancel, args=("cancel",)).start()
+    t0 = time.perf_counter()
     with pytest.raises(HandleError) as e:
         adapter.invoke(ref, "repo.log", {}, eager=False, call=call)
-    assert e.value.code == "JOB_CANCELLED"
+    assert e.value.code == "JOB_CANCELLED" and time.perf_counter() - t0 < 5

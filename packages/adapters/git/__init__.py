@@ -53,13 +53,12 @@ class Adapter(ResourceAdapter):
             raise HandleError("INVALID_INPUT", f"git {args[0]}: {err.decode(errors='replace').strip()}")
         return out
 
-    def _commit(self, path: str, rev: str) -> str:
-        if rev.startswith("-"):
-            raise HandleError("INVALID_INPUT", f"not a commit: {rev!r}")
-        return self._git(path, "rev-parse", "--verify", "--end-of-options", f"{rev}^{{commit}}").decode().strip()
+    def _commit(self, path: str, rev: str, call=None) -> str:
+        # After --end-of-options, git reads a rev that starts with "-" as a rev, never as an option.
+        return self._git(path, "rev-parse", "--verify", "--end-of-options", f"{rev}^{{commit}}", call=call).decode().strip()
 
-    def _rev(self, ref: ResourceRef) -> str:
-        return ref.locator["rev"] or self._commit(ref.locator["path"], "HEAD")
+    def _rev(self, ref: ResourceRef, call=None) -> str:
+        return ref.locator["rev"] or self._commit(ref.locator["path"], "HEAD", call)
 
     def open(self, source: dict) -> ResourceRef:
         path = Path(source["path"]).resolve(strict=True)
@@ -78,15 +77,13 @@ class Adapter(ResourceAdapter):
         return {"version": self._rev(ref)}
 
     def invoke(self, ref: ResourceRef, capability: str, input: dict, *, eager: bool, call) -> Value | Derived:
-        repo, rev = ref.locator["path"], self._rev(ref)
+        repo, rev = ref.locator["path"], self._rev(ref, call)
         path = input.get("path", "")
         scope = ["--", path] if path else []
         if capability == "repo.at":
-            commit = self._commit(repo, input["rev"])
+            commit = self._commit(repo, input["rev"], call)
             return Derived(ResourceRef("repository", {"path": repo, "rev": commit}, commit), kind="result", consistency="snapshot")
         if capability == "repo.read":
-            if path.startswith("-"):
-                raise HandleError("INVALID_INPUT", f"not a path: {path!r}")
             data = self._git(repo, "cat-file", "blob", f"{rev}:{path}", call=call)
             offset, length = input.get("offset", 0), input.get("length", 4096)
             part = data[offset:offset + length]
@@ -95,7 +92,7 @@ class Adapter(ResourceAdapter):
         budget = DEFAULT_MAX_OUTPUT_BYTES - _ENVELOPE
         if capability == "repo.diff":
             if "from" in input:
-                text = self._git(repo, "diff", "--no-ext-diff", "--no-textconv", "--no-color", self._commit(repo, input["from"]), rev, *scope, call=call)
+                text = self._git(repo, "diff", "--no-ext-diff", "--no-textconv", "--no-color", self._commit(repo, input["from"], call), rev, *scope, call=call)
             else:
                 text = self._git(repo, "show", "--format=", "--no-ext-diff", "--no-textconv", "--no-color", rev, *scope, call=call)
             text = text.decode("utf-8", "replace")

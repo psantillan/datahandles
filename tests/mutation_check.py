@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TEST = "tests"
 RT, FS, DB = "packages/runtime/runtime.py", "packages/adapters/filesystem/__init__.py", "packages/adapters/duckdb/__init__.py"
 REG, JOBS, WORKER, HTTP = "packages/runtime/registry.py", "packages/runtime/jobs.py", "packages/workers/remote.py", "packages/protocols/http.py"
+ADP, PLUG, GIT, WEB = "packages/runtime/adapter.py", "packages/runtime/plugins.py", "packages/adapters/git/__init__.py", "packages/adapters/browser/__init__.py"
 
 # (name, file, text to find, replacement)
 MUTANTS = [
@@ -24,7 +25,7 @@ MUTANTS = [
     ("no output size check in the runtime", RT, "if size > limit:", "if False:"),
     ("no input schema check", RT, "            check_input(cap[\"input_schema\"], operation[\"input\"])\n", ""),
     ("release does not end derived handles", RT, "rec.released_at is not None or any(", "rec.released_at is not None or False and any("),
-    ("an adapter fault stops the runtime", RT, "                except Exception as e:  # an adapter fault must not stop the runtime\n                    raise HandleError(\"ADAPTER_ERROR\", f\"{type(e).__name__}: {e}\") from e\n", ""),
+    ("an adapter fault stops the runtime", RT, "            except Exception as e:  # an adapter fault must not stop the runtime\n                raise HandleError(\"ADAPTER_ERROR\", f\"{type(e).__name__}: {e}\") from e\n", ""),
     ("submit runs nodes in list order", RT, "for nid in topological_order(graph):", "for nid in [n['id'] for n in graph['nodes'] if topological_order(graph)]:"),
     ("ephemeral handles survive a restart", RT, "        self.registry.drop_ephemeral()\n", ""),
     ("no cycle detection", "packages/core/graphs.py", "if len(order) != len(ids):", "if False:"),
@@ -55,6 +56,20 @@ MUTANTS = [
     ("the HTTP server accepts each token", HTTP, "principal = self._principals.get(_digest(token)) if kind == \"Bearer\" else None", "principal = self._principals.get(_digest(token), \"paul\")"),
     ("the HTTP server accepts unknown parameters", HTTP, "if not isinstance(params, dict) or set(params) - set(required) - set(optional):", "if False:"),
     ("each HTTP principal can create a resource handle", HTTP, "if method == \"handle.create\" and principal not in self.creators:", "if False:"),
+    # v0.2: locks, job threads, cancel, time limits, installed adapters, git, browser
+    ("one lock for all resources of an adapter", ADP, "key = None if ref is None else self._adapter.lock_key(ref)", "key = None"),
+    ("calls on one resource do not take turns", ADP, "            with self._lock(ref):\n                return attr(*args, **kwargs)", "            return attr(*args, **kwargs)"),
+    ("a hook after the cancel never runs", ADP, "                return\n        hook()", "                return"),
+    ("only one job thread", RT, "while len(self._threads) < self._job_threads:", "while not self._threads:"),
+    ("job.cancel does not reach a running call", JOBS, "            self._cancel_running(ref.locator[\"job\"])\n", ""),
+    ("no time limit", RT, "timeout_ms = cap.get(\"limits\", {}).get(\"timeout_ms\")", "timeout_ms = None"),
+    ("a time limit does not cancel the call", RT, "            call.cancel(\"timeout\")\n", ""),
+    ("a worker ignores a cancel task", WORKER, "                running.cancel(task[\"reason\"])", "                pass"),
+    ("an entry point replaces a built-in adapter", PLUG, "if importlib.util.find_spec(f\"datahandles.adapters.{kind}\") is not None:", "if False:"),
+    ("a git diff does not stop at the size limit", GIT, "            while len(json.dumps(cut).encode()) > budget:", "            while False:"),
+    ("a cancel does not kill the git process", GIT, "            call.on_cancel(proc.kill)", "            pass"),
+    ("a browser opens any URL scheme", WEB, "if urlsplit(url).scheme not in (\"http\", \"https\"):", "if False:"),
+    ("a cancel does not reach the browser task", WEB, "            call.on_cancel(future.cancel)", "            pass"),
 ]
 
 

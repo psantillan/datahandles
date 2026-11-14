@@ -165,3 +165,14 @@ def test_cancel_and_time_limit_reach_an_adapter_call_on_a_remote_worker(tmp_path
     finally:
         server.shutdown()
         server.server_close()
+
+
+def test_a_hook_that_comes_after_the_cancel_runs_at_once():
+    from datahandles.runtime.adapter import Call
+    call, ran = Call(), []
+    call.cancel("timeout")
+    call.on_cancel(lambda: ran.append(1))
+    assert ran == [1] and call.cancelled
+    with pytest.raises(HandleError) as e:
+        call.check()
+    assert e.value.code == "OPERATION_TIMEOUT"
