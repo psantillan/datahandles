@@ -1,6 +1,6 @@
 # DataHandles Protocol Specification
 
-Version 0.1 (draft). The key words MUST, MUST NOT, and MAY have the meanings of RFC 2119.
+Version 0.1. The key words MUST, MUST NOT, SHOULD, and MAY have the meanings of RFC 2119.
 
 This file and the JSON Schemas in `spec/protocol/` define the protocol. The Python code in
 `packages/` is one implementation of it. Where the code and this file differ, this file governs
@@ -37,7 +37,8 @@ Schema: `spec/protocol/handles.schema.json`.
   - `resource`: a reference to an external resource.
   - `computation`: a reference to a planned computation. The computation did not run yet.
   - `result`: a reference to the stored output of a computation.
-- `type` names the resource type (`dataset`, `filesystem`, `object`). It is the prefix of each
+  - `job`: a reference to an operation that runs asynchronously (section 14).
+- `type` names the resource type (`dataset`, `filesystem`, `object`, `job`). It is the prefix of each
   capability name of the handle.
 - `version` is the resource version that a `result` handle is pinned to, or that a `resource`
   handle had when it was registered. It is empty for a `computation` handle.
@@ -76,6 +77,14 @@ Schema: `spec/protocol/operations.schema.json`.
   - `lazy` (default): the runtime validates the operation and records a `computation` handle.
     It does not run the computation.
   - `eager`: the runtime runs the computation now and records a `result` handle.
+- `execution.async` `true` asks the runtime to run the operation as a job (section 14).
+- `execution.mode` limits the place of the execution. It does not select the place: an operation
+  runs where its target handle is (section 15).
+  - `auto` (default): no limit.
+  - `local`: the operation MUST run in the runtime process.
+  - `remote`: the operation MUST run on a worker.
+  - If the handle is not in the place that the mode names, the runtime MUST refuse the operation
+    (`INVALID_INPUT`, with `details.placement`). It MUST NOT move the resource.
 
 ## 6. Result
 
@@ -84,6 +93,8 @@ Schema: `spec/protocol/results.schema.json`.
 - `status` `completed`: the result has `output` (capability returns a value) or `handles`
   (capability returns a handle), not both.
 - `status` `failed`: the result has `error` (`errors.schema.json`) and has no `output`.
+- `status` `running`: the runtime accepted the operation as a job. The result has one handle of
+  the kind `job` in `handles`, and has no `output`.
 - `metadata.bytes_transferred` is the JSON size of `output`.
 - `metadata.source_version` is the resource version that the operation read.
 - A protocol failure is a result with `status` `failed`. It is not a transport failure.
@@ -112,6 +123,8 @@ Schema: `spec/protocol/graphs.schema.json`.
   that it holds on **every** parent. A derivation therefore gives no more authority than its
   inputs.
 - An operation with a `$handle` input needs the same capability on that input handle.
+- A `job` handle is the exception to inheritance. It belongs to the principal that submitted the
+  operation, and a principal gets nothing on it from a grant on its parents.
 - For each operation the runtime MUST do these checks in this order:
   1. Take the authenticated principal from the transport.
   2. Resolve the handle. If the principal holds no capability on it, the answer MUST be
@@ -121,8 +134,9 @@ Schema: `spec/protocol/graphs.schema.json`.
      (`CAPABILITY_DENIED`).
   5. Validate the input (`INVALID_INPUT`).
   6. Resolve and check each `$handle` input.
-  7. Call the adapter.
-  8. Record the operation: principal, target, capability, input, status, duration, bytes, version.
+  7. Check the limit of `execution.mode` against the place of the handle.
+  8. Call the adapter, or put the operation in the job queue.
+  9. Record the operation: principal, target, capability, input, status, duration, bytes, version.
 - An adapter never sees a principal or a grant. An adapter MUST keep each operation inside the
   resource of the handle (for example, a filesystem adapter MUST NOT follow a path or a symlink
   out of the root).
@@ -162,6 +176,10 @@ optional `details` for recovery (for example the capability names that the calle
 | `RESULT_TOO_LARGE` | The output is larger than `limits.max_output_bytes`. No output was sent. |
 | `GRAPH_CYCLE` | The submitted graph has a cycle. |
 | `ADAPTER_ERROR` | The adapter had a fault. The runtime continues. |
+| `WORKER_UNAVAILABLE` | The worker of the handle gave no answer (`retryable` true), or it is not registered, or it refused the task. |
+| `JOB_NOT_FINISHED` | `job.result` was called before the job ended. `retryable` is true, and `details.state` has the state. |
+| `JOB_CANCELLED` | The job was cancelled. It has no result. |
+| `JOB_INTERRUPTED` | The runtime stopped while the job ran, and the job cannot run again safely. |
 
 A `HANDLE_NOT_FOUND` error MAY carry `details.did_you_mean`: a list of handle ids that the caller
 probably means (the given text contains the id, or differs from it by a small number of
@@ -182,14 +200,141 @@ for an id that does not exist.
 | No-grant answer is `HANDLE_NOT_FOUND` | A principal must not learn which ids exist. |
 | `Handle.parents` | Lineage and grant inheritance both need the derivation edges. |
 | `details.did_you_mean` on `HANDLE_NOT_FOUND` | A 9B model dropped one character of a 26-character id and sent the wrong id three times before it recovered (`benchmarks/AGENT_RESULTS.md`). An opaque id gives a caller nothing to correct it from. |
+| A job is a handle of the kind `job`, not a set of `job.*` protocol methods | The design document says "the job itself is a resource". As a handle, a job gets grants, discovery, lineage, release, and the tool surface for a model with no new mechanism. |
+| The operation id is the idempotency key of a job | A caller that gets no answer to a submission must be able to send it again and not start the work twice. |
+| All checks run again when a job starts | Time passes between submission and execution. A grant that the owner revoked in that time must stop the job. |
+| `execution.mode` is a limit, not a selector | "Execution location must be an implementation detail." The place is a property of the handle. A caller that needs a guarantee about the place can state it, and gets an error if it does not hold. |
+| No grant inheritance on a `job` handle | With inheritance, each principal with a grant on the target could read the result of another principal's job. |
+| `handle.create` over HTTP needs a separate right | The method makes the runtime open a location that the caller names. A bearer token alone must not give that. |
 
 ## 13. Not in the v0.1 runtime yet
 
 The schemas reserve these. The reference runtime does not implement them. See `ROADMAP.md`.
 
-- Result statuses `running`, `waiting`, `cancelled`, and the job state machine (all operations are synchronous).
-- `execution.mode` `remote` and worker dispatch (all operations run in the runtime process).
+- The result status `waiting`.
 - `execution.priority`, `execution.deadline`, `limits.timeout_ms`, `lifecycle.expires_at`.
-- `continuous` consistency and subscriptions.
-- Transports (HTTP, SSE, MCP). The only transport is the in-process Python API, and the caller
-  vouches for the principal name.
+- `continuous` consistency, subscriptions, and an event stream (SSE).
+- Worker heartbeats, leases, and scheduling between workers.
+
+## 14. Jobs
+
+An operation runs as a job when `execution.async` is `true`, or when its capability declares the
+execution mode `async`.
+
+- At submission the runtime MUST do checks 1 to 7 of section 8. If a check fails, the result is
+  `failed` and no job exists.
+- If the checks pass, the runtime stores the job and returns a result with the status `running`
+  and one handle with `kind` `job` and `type` `job`. The `parents` of the job handle are the
+  target and each `$handle` input of the operation.
+- The submitter holds `*` on the job handle (section 8).
+- A job has one of these states: `queued`, `running`, `completed`, `failed`, `cancelled`. The last
+  three are final. A final state MUST NOT change.
+- When the job starts, the runtime MUST do the checks of section 8 again.
+- **Idempotency.** The operation id is the key. If a principal submits an operation that is equal
+  to one that it submitted before, the runtime MUST return the same job handle and MUST NOT start
+  a second job. If the id is known but the operation differs, or the principal differs, the
+  runtime MUST refuse it (`INVALID_INPUT`).
+
+A job handle has three capabilities:
+
+| Capability | Returns | Behavior |
+|---|---|---|
+| `job.status` | value | `state`, `attempts`, `operation_id`, `target`, `capability`, the times, and `error` for a failed job. |
+| `job.cancel` | value | A queued job ends as `cancelled`. For a running job, the runtime discards the output when the adapter returns, and the job ends as `cancelled`. A final state stays. The output is the status. |
+| `job.result` | what the operation returns | For a completed job: the output, or the handle that the operation made, under the same size limit. For a failed job: the error of the operation. Before the end: `JOB_NOT_FINISHED`. After a cancel: `JOB_CANCELLED`. |
+
+**Restart.** A job MUST survive a runtime restart. After a restart:
+
+- A queued job runs.
+- A job that was `running` runs again only if its capability declares `execution.idempotent`
+  `true` and it has no cancel request. If not, it ends as `failed` with `JOB_INTERRUPTED`.
+- An attempt that started before the restart MUST NOT change the job.
+
+## 15. Placement and workers
+
+- A runtime MAY keep a resource on a worker: a second process, usually on the machine that holds
+  the resource. A handle is created on a worker, and each handle derived from it stays on that
+  worker. The computation moves to the data.
+- A Handle MUST NOT show its place. The same sequence of operations MUST give equal outputs on a
+  local handle and on a remote handle of the same resource.
+- All handles of one operation (the target and each `$handle` input) MUST be in the same place.
+  If they are not, the runtime MUST refuse the operation (`INVALID_INPUT`).
+- If the worker gives no answer, the operation fails with `WORKER_UNAVAILABLE` and `retryable`
+  true. Handles in other places MUST continue to work.
+
+The protocol between a runtime and its workers is not part of this specification, and a caller
+never sees it. The reference runtime uses this one:
+
+- `POST /v1/task` with a JSON task: `method` (`info`, `open`, `describe`, `discover`, `observe`,
+  `release`, `invoke`), `adapter`, and for `invoke`: `ref`, `capability`, `input`, `refs` (the
+  resolved `$handle` inputs, apart from the caller's values), `eager`.
+- The runtime does every check of section 8 before it sends a task. A task carries no principal.
+- Each task has an `id`, an `expires` time (30 seconds after the signature; this number is
+  ASSUMED), and the header `X-DataHandles-Signature`: HMAC-SHA256 of the body with a key that the
+  runtime and the worker share. The worker refuses a task with a bad signature, a task past its
+  expiry time, and a task id that it did before.
+- A worker hosts only the adapters that its operator lists.
+
+## 16. HTTP binding
+
+A runtime that offers the protocol over HTTP MUST follow this binding.
+
+- Request: `POST /v1/<method>`, with a JSON object of parameters as the body.
+- Authentication: the header `Authorization: Bearer <token>`. The runtime takes the principal
+  from the token. It MUST NOT take a principal from the request body. With no known token the
+  answer is HTTP 401.
+- Reply: HTTP 200 and `{"result": ...}`. A protocol error is HTTP 200 and `{"error": Error}`.
+- A method that the runtime does not have gives HTTP 404. A parameter that the method does not
+  have gives `INVALID_INPUT`.
+
+| Method | Parameters | Result |
+|---|---|---|
+| `handle.create` | `name`, `adapter`, `source`, optional `worker` | Handle |
+| `handle.resolve` | `name` | Handle |
+| `handle.list` | | A list of Handles: each live handle that the principal holds a capability on |
+| `handle.describe` | `handle` | Handle |
+| `handle.release` | `handle` | null |
+| `handle.grant` | `handle`, `to`, `capabilities` | null |
+| `handle.revoke` | `handle`, `from` | null |
+| `resource.observe` | `handle` | An object with `version` |
+| `operation.invoke` | `operation` | OperationResult |
+| `graph.export` | `handle` | Graph |
+| `graph.submit` | `graph` | An object with `results` (operation node id to OperationResult) and `handles` (node id to handle id). The run stops at the first operation that fails. |
+
+- `handle.create` makes the runtime open a location that the caller names. A runtime MUST limit
+  it to principals that the operator trusts, and it answers `CAPABILITY_DENIED` to each other
+  principal.
+- There are no job methods. A caller invokes `job.status`, `job.cancel`, and `job.result` on the
+  job handle with `operation.invoke`.
+
+## 17. Conformance
+
+`tests/conformance/` is a test suite that uses only the methods of section 16. It runs against
+any runtime that offers the HTTP binding:
+
+```
+DATAHANDLES_URL=http://127.0.0.1:8470 DATAHANDLES_TOKEN=... DATAHANDLES_TOKEN_2=... python -m pytest tests/conformance
+```
+
+- `DATAHANDLES_TOKEN` is the token of a principal that can call `handle.create`.
+- `DATAHANDLES_TOKEN_2` is the token of a second principal, with the name `bob` or the name in
+  `DATAHANDLES_PRINCIPAL_2`.
+
+The suite needs one fixture resource type. A runtime under test MUST offer it:
+`handle.create` with `adapter` `memory` and `source` `{"value": <JSON value>}` gives a handle of
+the type `object` with these capabilities. `path` is a list of keys and list indexes.
+
+| Capability | Input | Returns |
+|---|---|---|
+| `object.get` | optional `path` | value: the JSON value at the path |
+| `object.keys` | optional `path` | value: `{"keys": [...]}` for a mapping, `{"length": n}` for a list |
+| `object.select` | `path` | handle: the value at the path |
+| `object.set` | `path`, `value` | value: `{"version": ...}`. The version of the resource changes. |
+| `object.equals` | `other` (a `$handle` input) | value: `{"equal": true or false}` |
+| `object.snapshot` | | handle: kind `result`, consistency `snapshot`, a copy at the current version |
+
+The suite tests sections 2 to 11, 14, and 16. It does not test section 15 through HTTP, because
+a caller cannot see the place of a handle.
+
+The suite ran against the reference runtime only: in process, behind its HTTP server, and with
+the fixture resources on a worker. No second implementation exists.

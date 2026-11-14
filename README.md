@@ -87,7 +87,8 @@ The full program is [`examples/quickstart.py`](examples/quickstart.py). It makes
 ## How it works
 
 - **Handle.** A reference with a kind: `resource` (an external thing), `computation` (a plan
-  that did not run), or `result` (a stored output). A handle holds no data and no credential.
+  that did not run), `result` (a stored output), or `job` (an operation that runs in the
+  background). A handle holds no data and no credential.
 - **Capability.** A typed operation with JSON Schemas for its input and output. It declares if
   it returns a value or a handle, its effects, and its output size limit.
 - **Lazy by default.** An operation that returns a handle only records a plan step. The DuckDB
@@ -102,16 +103,63 @@ The full program is [`examples/quickstart.py`](examples/quickstart.py). It makes
   `invoke`, `observe`, `release`. The core does not know any resource type. Three adapters
   exist: `memory` (JSON objects), `filesystem` (read-only directory tree), `duckdb` (Parquet,
   CSV, and DuckDB files).
-- **Registry.** Handles, grants, lineage, and an operation log live in SQLite and survive a
-  restart.
+- **Registry.** Handles, grants, lineage, jobs, and an operation log live in SQLite and survive
+  a restart.
 - **No language model is needed.** The runtime is a plain library.
+
+- **Jobs.** An operation with `background=True` returns a job handle at once. The job is a
+  resource: `job.status`, `job.cancel`, and `job.result` are its capabilities. A job survives a
+  restart of the runtime.
+- **Workers.** A resource can be on a remote worker, next to the data. The same program gives
+  the same answers, and no handle shows where it runs.
+
+## Remote use
+
+Three processes. The worker is next to the data. The runtime holds the registry and the grants.
+The client holds a URL and a token.
+
+```
+python -m datahandles.workers.remote --state worker-state --key-file worker.key --adapters duckdb --port 8471
+python -m datahandles.protocols.http --state state --tokens tokens.json --port 8470 --worker w1,http://127.0.0.1:8471,worker.key
+```
+
+`tokens.json` maps each bearer token to a principal: `{"a-long-random-token": {"principal": "analyst", "create": true}}`.
+
+```python
+client = connect("http://127.0.0.1:8470", token="a-long-random-token")
+events = client.register("events", adapter="duckdb", source="/data/events.parquet", worker="w1")
+
+purchases = events.filter(where=[{"column": "event_type", "op": "eq", "value": "purchase"}])  # the short call form
+purchases.count()                                    # the worker runs the plan, and one number comes back
+
+job = purchases.invoke("dataset.aggregate", {"metrics": [{"fn": "sum", "column": "amount", "as": "revenue"}]},
+                       eager=True, background=True)  # a job handle, at once
+job.wait().head()                                    # a handle to the stored output, then a bounded read
+```
+
+[`examples/remote.py`](examples/remote.py) runs all three parts in one program.
+
+Both servers use plain HTTP. Put them behind TLS or on a private network.
+
+## For a language model (MCP)
+
+The MCP server gives a model three tools: `handle_find`, `handle_describe`, `handle_invoke`.
+
+```
+python -m datahandles.protocols.mcp --state state --principal agent --register events=duckdb:/data/events.parquet
+DATAHANDLES_TOKEN=a-long-random-token python -m datahandles.protocols.mcp --url http://127.0.0.1:8470
+```
+
+The first form opens a local state directory. The second form connects to a runtime over HTTP.
+The server uses stdio and needs the `mcp` package (`pip install -e ".[mcp]"`).
 
 ## State
 
-Version 0.1, in development. Built: the protocol schemas, the local runtime, three adapters,
-composition and graphs, the registry, and a Python client. Not built yet: remote workers, async
-jobs, HTTP and MCP transports. [`ROADMAP.md`](ROADMAP.md) has the full table, with the limits of
-the current code.
+Version 0.1. Built: the protocol schemas, the runtime, three adapters, composition and graphs,
+the registry, async jobs, the remote worker, the HTTP transport, the MCP adapter, a Python
+client, and a conformance suite. This is the full v0.1 list of the design document.
+[`ROADMAP.md`](ROADMAP.md) has the table with the evidence for each part, what is not built, and
+the limits of the current code.
 
 ## Documents
 
@@ -129,15 +177,22 @@ the current code.
 python3 -m venv .venv
 .venv/bin/pip install -e ".[dev]"
 .venv/bin/python examples/quickstart.py
-.venv/bin/python -m pytest tests/conformance/test_acceptance.py -q
+.venv/bin/python examples/remote.py
+.venv/bin/python -m pytest tests -q
 .venv/bin/python tests/mutation_check.py
 .venv/bin/python benchmarks/context_efficiency.py 10000000
 OLLAMA_URL=http://localhost:11434 OLLAMA_MODEL=ornith-1.5:9b .venv/bin/python benchmarks/agent_context.py 1000000
 ```
 
-- The acceptance tests have one test for each row of the acceptance table in the design document.
-- The mutation check removes 20 guards from the source, one at a time, and confirms that a test
+- `tests/integration/test_acceptance.py` has one test for each row of the acceptance table in
+  the design document.
+- `tests/conformance/` uses protocol methods only. It runs on the reference runtime in process,
+  over HTTP, and with a worker. With `DATAHANDLES_URL` and two tokens it runs against any runtime
+  that offers the HTTP binding ([`SPECIFICATION.md`](SPECIFICATION.md) section 17). No second
+  implementation exists yet.
+- The mutation check removes 41 guards from the source, one at a time, and confirms that a test
   fails for each.
+- Install from a checkout with `-e`. The schemas load from `spec/protocol/` in the repository tree.
 - The benchmark argument is the largest row count. `100000000` needs about 11 GB of free disk.
 - The agent benchmark needs an Ollama server and a model that supports tool calls.
 
@@ -146,12 +201,15 @@ OLLAMA_URL=http://localhost:11434 OLLAMA_MODEL=ornith-1.5:9b .venv/bin/python be
 ```
 spec/protocol/        JSON Schemas (the protocol)
 packages/core/        ids, errors, schema validation, graph ordering
-packages/runtime/     runtime, registry, adapter contract
+packages/runtime/     runtime, registry, jobs, adapter contract
 packages/adapters/    memory, filesystem, duckdb
+packages/workers/     the remote HTTP worker
+packages/protocols/   HTTP transport, MCP adapter, the tool surface for a language model
 packages/sdk/         Python client
-packages/protocols/   the two-tool surface for a language model
-tests/conformance/    acceptance tests
-benchmarks/           context-efficiency benchmark and results
+tests/integration/    acceptance tests
+tests/conformance/    protocol tests that run against any implementation
+tests/unit/           jobs, worker, transports
+benchmarks/           context-efficiency benchmarks and results
 ```
 
 Python imports `packages/` as `datahandles`.
