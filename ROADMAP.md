@@ -54,18 +54,35 @@ model works for data, and v0.1 shows that already. So the resource-independence 
 
 Steps 3 and 4 changed the adapter interface: `invoke` takes a `call`, and an adapter can declare `lock_key` (`SPECIFICATION.md` section 18).
 
-## v0.3 and later
+## v0.3: Replayable graphs
+
+Goal: a workflow is a graph of operations with a handle at each step. A caller can change one
+part and run it again, and only that part and the steps after it run. The same model must hold
+for long simulations, sensor streams, and actions in the physical world.
+
+| Step | State | Done when |
+|---|---|---|
+| 1. A stable identity for each graph node, and reuse of unchanged results | Not built | Change one node of a five-step graph and submit it again: only that node and the nodes after it run (the operation log shows it), and the outputs equal a full run |
+| 2. Job nodes in a graph | Not built | A graph with a long node returns at once; a caller can observe and cancel it; after a restart the graph goes on without running a finished node again |
+| 3. Rules for actions that change the world | Not built | A finished node with an external, non-idempotent effect never runs again when the graph is submitted again; such a node waits in the status `waiting` until a principal with the right approves it |
+| 4. Recorded windows | Not built | A capability records the observations of a live source into a `result` handle; a graph over that handle gives equal outputs on each replay while the live source changes |
+| 5. Streams and subscriptions | Not built | `continuous` consistency and an event stream; a sensor-stream adapter (simulated sensor) delivers each new reading to a subscriber, and step 4 records a window of it |
+| 6. A simulation adapter with fork | Not built | Two forks of one state take different inputs and give different states; the parent state does not change; the same inputs on a new fork give an equal state |
+| 7. A brief form of `handle.describe` | Not built | Both agent benchmarks run again with a lower peak prompt and the same accuracy (12 of 12, 5 of 5) |
+| 8. A cancel hook for the DuckDB adapter (`DuckDBPyConnection.interrupt`) | Not built | A cancel stops a running query |
+| 9. Acceptance: one agent edits and runs a graph over a sensor, a simulation, and an action | Not built | Through the MCP server, an agent records a sensor window, forks a simulation from it, changes one node, runs the graph again (only the changed part runs), and the action node waits for approval |
+
+Steps 1 to 3 change only the runtime and the graph schema. Step 7 changes the protocol.
+
+## v0.4 and later
 
 - Worker discovery, heartbeats, leases, and scheduling between workers. One handle is on one worker.
-- An event stream (SSE), `continuous` consistency, and subscriptions. A sensor-stream adapter needs these.
-- Checkpoint and resume of a job.
+- Checkpoint and resume inside one job.
 - A PostgreSQL adapter.
 - `execution.priority`, `execution.deadline`, `lifecycle.expires_at`.
 - Agent-as-resource, capability delegation, cross-runtime references, a TypeScript SDK
   (`ARCHITECTURE.md` section 14, v0.3).
 - A second implementation of the protocol.
-- A brief form of `handle.describe` (see the limits below).
-- A cancel hook for the DuckDB adapter (`DuckDBPyConnection.interrupt`).
 
 ## Known limits of the 0.2 code
 
