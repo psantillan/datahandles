@@ -5,21 +5,23 @@
 ![python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
 [![license](https://img.shields.io/github/license/psantillan/datahandles)](LICENSE)
 
-An AI agent answers a join-and-aggregate question over 100 million rows and receives 3.7 KB.
-The rows themselves are 9.2 GB as JSON. They never leave the place where they are stored.
+A protocol and a reference runtime that let an AI agent work on a resource through a reference
+instead of a copy.
 
-DataHandles is a protocol and a reference runtime for this. An agent gets a **handle**: an opaque
-id, a type, a schema, and a list of typed capabilities. It invokes capabilities on the handle. A
-capability returns a new handle (no data moves) or a bounded value (a small, size-limited
-answer). The computation runs where the resource is. A local 9B model on one GTX 1080 answered
-12 of 12 benchmark questions this way, with a peak prompt of 5,015 tokens.
+An agent gets a **handle**: an opaque id, a type, a schema, and a list of typed capabilities. It
+invokes capabilities on the handle. A capability returns a new handle (no data moves) or a
+bounded value (a small, size-limited answer). The runtime checks each call against the grants of
+the caller and runs it where the resource is: in process or on a remote worker. A long operation
+runs as a job, and the job is a handle too.
+
+A resource is anything that an adapter can wrap. This release has adapters for JSON objects, a
+read-only file tree, and tabular files through DuckDB. The plan for v0.2 adds resources that are
+not datasets: a git repository and a browser session ([`ROADMAP.md`](ROADMAP.md)).
 
 The property that this project tests:
 
 > Context consumption should scale with the complexity of the question, not the size of the
 > underlying dataset.
-
-![Bytes that reach the caller: rows as JSON grow from 878 kB to 9.2 GB; protocol bytes stay at 3.7 kB](benchmarks/context_efficiency.svg)
 
 ```mermaid
 flowchart LR
@@ -40,6 +42,8 @@ The agent sees only the left side of this picture. Rows, files, and credentials 
 
 One question (filter, join, aggregate, sort, bounded read) on a Parquet file that grows from
 10,000 rows to 100,000,000 rows. Full method and all rows: [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md).
+
+![Bytes that reach the caller: rows as JSON grow from 878 kB to 9.2 GB; protocol bytes stay at 3.7 kB](benchmarks/context_efficiency.svg)
 
 | Event rows | Rows as JSON | Protocol bytes to caller | Answer bytes | Time |
 |---:|---:|---:|---:|---:|
