@@ -6,7 +6,6 @@ The caller of `execute` supplies the principal. A transport (HTTP, MCP) must aut
 Placement: a handle lives where its resource is. The adapter name `duckdb` is the adapter in this
 process. The name `duckdb@w1` is the same adapter on the registered remote worker `w1`.
 """
-import importlib.util
 import json
 import os
 import threading
@@ -17,6 +16,7 @@ from pathlib import Path
 from ..core import HandleError, check_input, edit_distance, new_id, topological_order, violations
 from .adapter import Call, Derived, Known, Locked, ResourceAdapter, ResourceRef, Value
 from .jobs import JobAdapter
+from .plugins import adapter_class
 from .registry import Record, Registry
 
 ALL = "*"  # a grant on every capability of a handle
@@ -53,11 +53,11 @@ class Runtime:
         self._recover()
 
     def adapter(self, name: str) -> ResourceAdapter:
-        """Return an adapter. A name that is not loaded yet is a module in datahandles.adapters, here or on a worker."""
+        """Return an adapter. A name that is not loaded yet is a built-in adapter or an installed one (see plugins), here or on a worker."""
         with self._lock:
             if name not in self._adapters:
                 kind, _, worker_id = name.partition("@")
-                if not kind.isidentifier() or (not worker_id and importlib.util.find_spec(f"datahandles.adapters.{kind}") is None):
+                if not kind.isidentifier():
                     raise HandleError("INVALID_INPUT", f"no adapter {kind!r}")
                 if worker_id:
                     worker = self.registry.worker(worker_id)
@@ -66,7 +66,7 @@ class Runtime:
                     from ..workers.remote import RemoteAdapter  # not at the top: the worker module is also a program
                     self._adapters[name] = RemoteAdapter(kind, worker)
                 else:
-                    self._adapters[name] = Locked(importlib.import_module(f"datahandles.adapters.{kind}").Adapter(self.state_dir))
+                    self._adapters[name] = Locked(adapter_class(kind)(self.state_dir))
             return self._adapters[name]
 
     def add_worker(self, worker_id: str, url: str, key: str) -> dict:

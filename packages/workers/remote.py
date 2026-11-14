@@ -16,7 +16,6 @@ import argparse
 import hashlib
 import hmac
 import http.client
-import importlib
 import json
 import os
 import threading
@@ -26,6 +25,7 @@ from pathlib import Path
 from ..core import HandleError, new_id
 from ..core.wire import post, serve
 from ..runtime.adapter import Call, Derived, Locked, ResourceAdapter, ResourceRef, Value
+from ..runtime.plugins import adapter_class
 
 # ASSUMED: 30 s. A task is valid for this time after the runtime signs it. The time must cover the
 # clock difference between the two machines and the time to send the request. No measurement is behind it.
@@ -101,10 +101,7 @@ class Worker:
     def __init__(self, state_dir, key: str, adapters, worker_id: str = "worker"):
         self.state_dir, self.key, self.id = Path(state_dir), key, worker_id
         self.state_dir.mkdir(parents=True, exist_ok=True)
-        for name in adapters:
-            if not name.isidentifier():
-                raise ValueError(f"bad adapter name: {name!r}")
-        self._adapters = {name: Locked(importlib.import_module(f"datahandles.adapters.{name}").Adapter(self.state_dir)) for name in adapters}
+        self._adapters = {name: Locked(adapter_class(name)(self.state_dir)) for name in adapters}
         self._seen, self._lock = {}, threading.Lock()  # task id -> expiry time
         self._calls: dict[str, Call] = {}  # task id -> the call of a running invoke task
 
