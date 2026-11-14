@@ -420,6 +420,7 @@ entry point in the group `datahandles.adapters` of an installed package. A built
 | `room` | A simulated room: a temperature sensor and a heater (`continuous`); recorded windows | `room`, `window` | each room | ends a stream |
 | `sim` | A simulation of the room; each state never changes, so a state forks | `sim_state` | each state | checks between steps |
 | `graph` | A computation graph (inside the runtime, which does its capabilities) | `graph` | none | reaches the node that runs |
+| `api` | A generic HTTP JSON API at a fixed base URL; stored responses | `api`, `response` | each API, each response | closes the socket |
 
 **Streams.** A capability with `execution.mode` `stream` has a `stream(ref, capability, input,
 call)` method in its adapter. It yields one bounded value for each event and stops soon after the

@@ -20,8 +20,8 @@ world waits for an approval, and it never runs a second time by accident. A live
 sensor, can be recorded into a window that never changes, so a graph over it replays exactly.
 
 A resource is anything that an adapter can wrap. This release has adapters for JSON objects, a
-read-only file tree, tabular files through DuckDB, git repositories, browser sessions, a simulated
-room with a sensor and a heater, and a simulation of that room. An installed package can add more.
+read-only file tree, tabular files through DuckDB, git repositories, browser sessions, HTTP JSON
+APIs, a simulated room with a sensor and a heater, and a simulation of that room. An installed package can add more.
 The core does not know any of these types.
 
 The property that this project tests:
@@ -261,6 +261,7 @@ python3 -m venv .venv
 .venv/bin/python -m playwright install --only-shell chromium
 .venv/bin/python examples/quickstart.py
 .venv/bin/python examples/remote.py
+.venv/bin/python examples/public_apis.py
 .venv/bin/python -m pytest tests -q
 .venv/bin/python tests/mutation_check.py
 .venv/bin/python benchmarks/context_efficiency.py 10000000
@@ -275,7 +276,7 @@ OLLAMA_URL=http://localhost:11434 OLLAMA_MODEL=ornith-1.5:9b .venv/bin/python be
   over HTTP, and with a worker. With `DATAHANDLES_URL` and two tokens it runs against any runtime
   that offers the HTTP binding ([`SPECIFICATION.md`](SPECIFICATION.md) section 17). No second
   implementation exists yet.
-- The mutation check removes 69 guards from the source, one at a time, and confirms that a test
+- The mutation check removes 74 guards from the source, one at a time, and confirms that a test
   fails for each.
 - Install from a checkout with `-e`. The schemas load from `spec/protocol/` in the repository tree.
 - The benchmark argument is the largest row count. `100000000` needs about 11 GB of free disk.
@@ -287,7 +288,7 @@ OLLAMA_URL=http://localhost:11434 OLLAMA_MODEL=ornith-1.5:9b .venv/bin/python be
 spec/protocol/        JSON Schemas (the protocol)
 packages/core/        ids, errors, schema validation, graph ordering
 packages/runtime/     runtime, registry, jobs, graphs, adapter contract
-packages/adapters/    memory, filesystem, duckdb, git, browser, room, sim
+packages/adapters/    memory, filesystem, duckdb, git, browser, room, sim, api
 packages/workers/     the remote HTTP worker
 packages/protocols/   HTTP transport, MCP adapter, the tool surface for a language model
 packages/sdk/         Python client

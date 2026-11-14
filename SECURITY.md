@@ -17,6 +17,10 @@ vulnerability.
   path inside a commit (`commit:path`). A rev goes to git after `--end-of-options`, so it cannot
   pass as an option. External diff programs and text conversion are off.
 - The browser adapter opens only http and https URLs.
+- The api adapter sends each request to the host and the path of the base URL that the
+  registering principal named. A caller names only a path: a path with a host, a scheme, a query
+  string, or a `..` segment is refused. A redirect is not followed. A token comes from an
+  environment variable of the runtime process (`token_env`) and never goes into the registry.
 - Each value output has a size limit that the runtime enforces.
 - The HTTP transport takes the principal from a bearer token, never from the request body. Only
   principals that the operator lists can create a resource handle.
@@ -41,6 +45,8 @@ vulnerability.
 - There is no sandbox. An adapter runs in the runtime process, or in the worker process, with its full rights.
 - A principal that can register a resource can point an adapter at any path that the runtime
   process can read. Give the right to register only to trusted principals.
+- The base URL of an api handle can be any address that the runtime process can reach, local
+  network addresses included. Give the right to register only to trusted principals.
 - A browser session can reach every http and https address that the runtime or worker process can
   reach, local network addresses included. Give the browser adapter only to trusted principals, or
   run it on a worker in a network that holds nothing private.

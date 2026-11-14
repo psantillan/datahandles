@@ -85,6 +85,12 @@ MUTANTS = [
     ("a memory object shares the value of the caller", "packages/adapters/memory/__init__.py", "[copy.deepcopy(source[\"value\"]), 1]", "[source[\"value\"], 1]"),
     ("a cancel does not interrupt the DuckDB query", DB, "        remove = call.on_cancel(self.db.interrupt)", "        remove = lambda: None"),
     ("a stream event has no size limit", RT, "                if size > limit:\n                    raise HandleError(\"RESULT_TOO_LARGE\", f\"an event", "                if False:\n                    raise HandleError(\"RESULT_TOO_LARGE\", f\"an event"),
+    # after v0.3: the generic API adapter
+    ("an API path can leave the base URL", "packages/adapters/api/__init__.py", "        if not path.startswith(\"/\") or path.startswith(\"//\")", "        if False and path.startswith(\"//\")"),
+    ("an API token is not sent", "packages/adapters/api/__init__.py", "            headers[\"Authorization\"] = f\"Bearer {token}\"\n", ""),
+    ("an API response has no size limit", "packages/adapters/api/__init__.py", "            if len(raw) > limit:", "            if False:"),
+    ("a live API answer has a stable version", "packages/adapters/api/__init__.py", "else new_id(\"v\")}", "else \"\"}"),
+    ("api.get sends a body of any size", "packages/adapters/api/__init__.py", "            elif len(json.dumps(parsed).encode()) <= budget:", "            elif True:"),
     ("the brief describe gives every schema", RT, "        elif detail == \"brief\":", "        elif False:"),
 ]
 

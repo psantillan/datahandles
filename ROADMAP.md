@@ -74,6 +74,12 @@ for long simulations, sensor streams, and actions in the physical world.
 
 Steps 1 to 3 change only the runtime and the graph schema. Step 7 changes the protocol.
 
+## After v0.3 (built, not released)
+
+| Item | Evidence |
+|---|---|
+| A generic HTTP JSON API adapter (`api`): live `api.get`, stored responses that never change (`api.fetch`, `response.*`), `api.post` as an action | `tests/unit/test_api_adapter.py` against a local service; `examples/public_apis.py` against Open-Meteo, USGS, and GitHub |
+
 ## v0.4 and later
 
 - Worker discovery, heartbeats, leases, and scheduling between workers. One handle is on one worker.
