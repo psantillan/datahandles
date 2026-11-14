@@ -223,7 +223,8 @@ def test_an_action_waits_for_an_approval_and_one_approval_allows_one_run(tmp_pat
     paul = Client(runtime, "paul")
     g = paul.register("flow", adapter="graph", source={"graph": lamp_graph(paul.register("lamp", adapter="lamp", source={}).id)})
     first = g.invoke("graph.run")["results"]
-    assert first["switch"]["status"] == "waiting" and "read" not in first and lamp.switches == 0
+    assert first["switch"]["status"] == "waiting" and lamp.switches == 0
+    assert first["read"]["output"] == {"on": False, "switches": 0}  # a node that does not depend on the action still runs
     assert violations("results", first["switch"]) == []
     # Approval needs its own grant: a principal that can run the graph cannot approve.
     g.grant("bob", ["graph.run"])
@@ -232,7 +233,7 @@ def test_an_action_waits_for_an_approval_and_one_approval_allows_one_run(tmp_pat
     assert e.value.code == "CAPABILITY_DENIED"
     g.invoke("graph.approve", {"node": "switch"})
     ran = g.invoke("graph.run")["results"]
-    assert ran["switch"]["output"] == {"on": True, "switches": 1} and ran["read"]["output"]["on"] and lamp.switches == 1
+    assert ran["switch"]["output"] == {"on": True, "switches": 1} and lamp.switches == 1
     # A finished action never runs again by itself, also when its target has a new version.
     again = g.invoke("graph.run")["results"]
     assert again["switch"]["metadata"]["reused"] and lamp.switches == 1
@@ -253,3 +254,14 @@ def test_an_edited_action_is_a_new_action_and_needs_its_own_approval(tmp_path):
     with pytest.raises(HandleError) as e:
         g.invoke("graph.approve", {"node": "nothing"})
     assert e.value.code == "INVALID_INPUT"
+
+
+def test_a_failed_node_blocks_only_the_nodes_after_it(tmp_path):
+    paul = Client(Runtime(tmp_path / "state"), "paul")
+    root = paul.register("config", adapter="memory", source={"value": VALUE})
+    graph = chain(root.id, [("object.select", {"path": ["nothing"]}), ("object.get", {})])
+    graph["nodes"].append({"id": "side", "kind": "operation", "operation": {"capability": "object.keys", "input": {}}})
+    graph["edges"].append({"from": "root", "to": "side"})
+    run = paul.submit(graph)
+    assert run["results"]["op0"]["status"] == "failed" and "op1" not in run["results"]
+    assert run["results"]["side"]["output"] == {"keys": ["a"]}

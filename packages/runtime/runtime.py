@@ -545,7 +545,8 @@ class Runtime:
         status `waiting`.
 
         Return {"results": {operation node id: OperationResult}, "handles": {node id: handle id}}.
-        The run stops at the first operation that fails or waits. A cancel of `call` stops it before the next node.
+        A node that fails or waits blocks the nodes after it: they do not run and have no result.
+        Nodes that do not depend on it still run. A cancel of `call` stops the run before the next node.
         """
         bad = violations("graphs", graph)
         if bad:
@@ -553,9 +554,12 @@ class Runtime:
         nodes = {n["id"]: n for n in graph["nodes"]}
         incoming = {i: [e for e in graph["edges"] if e["to"] == i] for i in nodes}
         structural = _structural_keys(graph)
-        bound, results, keys = {}, {}, {}
+        bound, results, keys, blocked = {}, {}, {}, set()
         for nid in topological_order(graph):
             node, sources = nodes[nid], incoming[nid]
+            if any(e["from"] in blocked for e in sources):
+                blocked.add(nid)
+                continue
             if node["kind"] == "resource":
                 bound[nid] = node["reference"]
                 keys[nid] = _key({"handle": node["reference"], "version": self.observe(principal, node["reference"])["version"]})
@@ -590,8 +594,9 @@ class Runtime:
                     if r["status"] == "completed":
                         self.registry.put_node_run(principal, key, r, _now())
                 results[nid] = r
-                if r["status"] != "completed":
-                    break  # failed or waiting
+                if r["status"] != "completed":  # failed or waiting
+                    blocked.add(nid)
+                    continue
                 if "handles" in r:
                     bound[nid] = r["handles"][0]["id"]
             else:  # derived or materialized: the output of the one operation before it
