@@ -164,10 +164,11 @@ The full program is [`examples/quickstart.py`](examples/quickstart.py). It makes
   checks each operation against the grants of the principal. A derived handle gives no more
   than the handles it derives from.
 - **Adapters.** A resource type is one class with six methods: `open`, `describe`, `discover`,
-  `invoke`, `observe`, `release`. The core does not know any resource type. Five adapters
+  `invoke`, `observe`, `release`. The core does not know any resource type. Eight adapters
   exist: `memory` (JSON objects), `filesystem` (read-only directory tree), `duckdb` (Parquet,
-  CSV, and DuckDB files), `git` (a repository, read-only), and `browser` (a headless Chromium
-  session). A separate package can add an adapter through the entry point group
+  CSV, and DuckDB files), `git` (a repository, read-only), `browser` (a headless Chromium
+  session), `api` (an HTTP JSON API), `room` (a simulated sensor and heater), and `sim` (a
+  simulation of that room). A separate package can add an adapter through the entry point group
   `datahandles.adapters`.
 - **Registry.** Handles, grants, lineage, jobs, and an operation log live in SQLite and survive
   a restart.
@@ -191,6 +192,10 @@ The full program is [`examples/quickstart.py`](examples/quickstart.py). It makes
 - **Live sources and windows.** A `continuous` handle streams events (`operation.subscribe`,
   server-sent events over HTTP). A window records a range of events as a handle that never
   changes. A simulation state never changes either, so one state forks into several runs.
+- **HTTP APIs.** An `api` handle has a fixed base URL, and a caller names only a path under it.
+  `api.get` gives a live answer. `api.fetch` stores a response as a handle that never changes, so
+  a caller reads a large body in parts and a graph over it replays. `api.post` is an action.
+  [`examples/public_apis.py`](examples/public_apis.py) reads three public APIs this way.
 - **Workers.** A resource can be on a remote worker, next to the data. The same program gives
   the same answers, and no handle shows where it runs.
 
@@ -232,11 +237,12 @@ DATAHANDLES_TOKEN=a-long-random-token python -m datahandles.protocols.mcp --url 
 ```
 
 The first form opens a local state directory. The second form connects to a runtime over HTTP.
+`--register weather=api:https://api.open-meteo.com/v1` gives the model an HTTP API in the same way.
 The server uses stdio and needs the `mcp` package (`pip install -e ".[mcp]"`).
 
 ## State
 
-Version 0.3. Built: the protocol schemas, the runtime, seven adapters, replayable graphs with
+Version 0.3. Built: the protocol schemas, the runtime, eight adapters, replayable graphs with
 approvals for actions, streams and recorded windows, the registry, async jobs on several threads
 with cancel and time limits, the remote worker, the HTTP transport, the MCP adapter, a Python
 client, installed adapters, and a conformance suite.
@@ -276,7 +282,7 @@ OLLAMA_URL=http://localhost:11434 OLLAMA_MODEL=ornith-1.5:9b .venv/bin/python be
   over HTTP, and with a worker. With `DATAHANDLES_URL` and two tokens it runs against any runtime
   that offers the HTTP binding ([`SPECIFICATION.md`](SPECIFICATION.md) section 17). No second
   implementation exists yet.
-- The mutation check removes 74 guards from the source, one at a time, and confirms that a test
+- The mutation check removes 78 guards from the source, one at a time, and confirms that a test
   fails for each.
 - Install from a checkout with `-e`. The schemas load from `spec/protocol/` in the repository tree.
 - The benchmark argument is the largest row count. `100000000` needs about 11 GB of free disk.

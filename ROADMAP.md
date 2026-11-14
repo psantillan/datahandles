@@ -79,6 +79,7 @@ Steps 1 to 3 change only the runtime and the graph schema. Step 7 changes the pr
 | Item | Evidence |
 |---|---|
 | A generic HTTP JSON API adapter (`api`): live `api.get`, stored responses that never change (`api.fetch`, `response.*`), `api.post` as an action | `tests/unit/test_api_adapter.py` against a local service; `examples/public_apis.py` against Open-Meteo, USGS, and GitHub |
+| The MCP server registers an API from one string (`--register weather=api:https://api.open-meteo.com/v1`) | same file: a source given as one string is the base URL |
 
 ## v0.4 and later
 
@@ -155,6 +156,18 @@ Agents:
 - The dataset benchmark ran before the MCP adapter existed. It used the same two tool definitions
   in process. The two-resource task (`benchmarks/AGENT_MCP_RESULTS.md`) ran through the MCP server.
 - The two-resource task and the v0.3 task are each one task with one model, 5 runs.
+
+APIs:
+
+- The api adapter does GET and POST only. It has no PUT, PATCH, or DELETE.
+- The only credential is a bearer token. There is no custom header and no key in the query string.
+- An api handle with no `timeout_ms` has no time limit. A request waits as long as the service
+  keeps the connection open, or until a cancel.
+- Requests to one API run one at a time (one lock for each base URL).
+- There is no retry, no rate limit, and no paging. A 429 status comes back to the caller.
+- A stored response keeps JSON, or text read as UTF-8. A binary body is not kept exactly.
+- The largest stored response is 10 MiB by default. This number is assumed, not measured.
+- The tests use a local service. Only `examples/public_apis.py` calls real APIs, and CI does not run it.
 
 Browser:
 

@@ -1,5 +1,6 @@
 """The generic HTTP JSON API adapter: live requests, stored responses that replay, and the rules on hosts and tokens."""
 import json
+import socket
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -7,6 +8,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 
 from datahandles import Client, HandleError, Runtime
+from datahandles.adapters.api import Adapter
+from datahandles.runtime.adapter import Call
 
 
 class Service:
@@ -46,6 +49,8 @@ class Service:
             def do_POST(self):
                 body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
                 service.items.append(body)
+                if self.path == "/v1/bulk":
+                    return self.reply(201, {"rows": [{"n": i, "text": "x" * 50} for i in range(5000)]})
                 self.reply(201, {"created": body})
 
             def log_message(self, *args):
@@ -106,12 +111,13 @@ def test_a_stored_response_never_changes_and_a_graph_over_it_replays(paul, servi
     assert e.value.code == "RESULT_TOO_LARGE"
 
 
-@pytest.mark.parametrize("path", ["http://evil.example/x", "//evil.example/x", "/../admin", "items", "/items?x=1"])
+@pytest.mark.parametrize("path", ["http://evil.example/x", "//evil.example/x", "/../admin", "items", "/items?x=1",
+                                  "/%2e%2e/admin", "/a/..%2Fadmin", "/a\\..\\admin", "/a b", "/caf\u00e9"])
 def test_a_path_cannot_leave_the_base_url(paul, service, path):
     api = paul.register("shop", adapter="api", source={"base_url": service.url})
     with pytest.raises(HandleError) as e:
         api.invoke("api.get", {"path": path})
-    assert e.value.code == "INVALID_INPUT"
+    assert e.value.code == "INVALID_INPUT" and service.auth == []  # no request went out
 
 
 def test_a_redirect_is_not_followed(paul, service):
@@ -139,6 +145,59 @@ def test_a_time_limit_stops_a_slow_request(paul, service):
     result = api.call("api.get", {"path": "/slow"})
     assert result["error"]["code"] == "OPERATION_TIMEOUT" and time.perf_counter() - t0 < 5
     assert api.invoke("api.get", {"path": "/items"})["status"] == 200
+
+
+def test_a_time_limit_ends_a_connect_that_gets_no_answer(paul):
+    # A listener that never accepts: when its queue is full, Linux drops each new SYN.
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(0)
+    held = []
+    for _ in range(4):
+        s = socket.socket()
+        s.settimeout(0.3)
+        try:
+            s.connect(listener.getsockname())
+            held.append(s)
+        except OSError:
+            break
+    else:
+        pytest.skip("this system accepts each connection")
+    api = paul.register("hang", adapter="api", source={"base_url": f"http://127.0.0.1:{listener.getsockname()[1]}", "timeout_ms": 300})
+    before = threading.active_count()
+    assert api.call("api.get", {"path": "/x"})["error"]["code"] == "OPERATION_TIMEOUT"
+    end = time.monotonic() + 5
+    while threading.active_count() > before and time.monotonic() < end:
+        time.sleep(0.05)
+    assert threading.active_count() <= before  # the adapter thread ended: it does not hold the lock of the API
+    for s in [listener, *held]:
+        s.close()
+
+
+def test_a_call_cancelled_during_the_connect_sends_no_request(tmp_path, service):
+    adapter, call = Adapter(tmp_path), Call()
+    ref = adapter.open({"base_url": service.url})
+    call.cancel("cancel")
+    with pytest.raises(HandleError) as e:
+        adapter.invoke(ref, "api.post", {"path": "/items", "json": {"id": 9}}, eager=False, call=call)
+    assert e.value.code == "JOB_CANCELLED" and len(service.items) == 2
+
+
+def test_a_large_reply_to_a_post_gives_its_shape_not_an_error(paul, service):
+    api = paul.register("shop", adapter="api", source={"base_url": service.url})
+    out = api.invoke("api.post", {"path": "/bulk", "json": {"id": 3}})
+    assert out["status"] == 201 and out["truncated"] and out["shape"] == {"keys": ["rows"], "key_count": 1} and len(service.items) == 3
+
+
+def test_a_fetch_stores_only_a_2xx_response(tmp_path, paul, service):
+    api = paul.register("shop", adapter="api", source=service.url)  # a source given as one string is the base URL
+    for path, status in (("/missing", 404), ("/moved", 302)):
+        with pytest.raises(HandleError) as e:
+            api.invoke("api.fetch", {"path": path})
+        assert e.value.code == "ADAPTER_ERROR" and e.value.details["status"] == status
+    assert e.value.details["location"] == "http://elsewhere.example/v1/items"
+    assert list((tmp_path / "state" / "api").glob("*.json")) == []
+    assert api.invoke("api.get", {"path": "/missing"})["status"] == 404  # a live answer still shows the status
 
 
 def test_a_post_is_an_action_that_waits_for_an_approval_in_a_graph(paul, service):

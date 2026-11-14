@@ -86,11 +86,15 @@ MUTANTS = [
     ("a cancel does not interrupt the DuckDB query", DB, "        remove = call.on_cancel(self.db.interrupt)", "        remove = lambda: None"),
     ("a stream event has no size limit", RT, "                if size > limit:\n                    raise HandleError(\"RESULT_TOO_LARGE\", f\"an event", "                if False:\n                    raise HandleError(\"RESULT_TOO_LARGE\", f\"an event"),
     # after v0.3: the generic API adapter
-    ("an API path can leave the base URL", "packages/adapters/api/__init__.py", "        if not path.startswith(\"/\") or path.startswith(\"//\")", "        if False and path.startswith(\"//\")"),
+    ("an API path can leave the base URL", "packages/adapters/api/__init__.py", "        if (not path.startswith(\"/\") or path.startswith(\"//\")", "        if (False and path.startswith(\"//\")"),
+    ("a percent escape hides a .. segment in an API path", "packages/adapters/api/__init__.py", "segments = unquote(path).replace(\"\\\\\", \"/\").split(\"/\")", "segments = path.split(\"/\")"),
     ("an API token is not sent", "packages/adapters/api/__init__.py", "            headers[\"Authorization\"] = f\"Bearer {token}\"\n", ""),
     ("an API response has no size limit", "packages/adapters/api/__init__.py", "            if len(raw) > limit:", "            if False:"),
     ("a live API answer has a stable version", "packages/adapters/api/__init__.py", "else new_id(\"v\")}", "else \"\"}"),
-    ("api.get sends a body of any size", "packages/adapters/api/__init__.py", "            elif len(json.dumps(parsed).encode()) <= budget:", "            elif True:"),
+    ("a live API answer has a body of any size", "packages/adapters/api/__init__.py", "        elif len(json.dumps(parsed).encode()) <= DEFAULT_MAX_OUTPUT_BYTES - _ENVELOPE:", "        elif True:"),
+    ("api.fetch stores an error response", "packages/adapters/api/__init__.py", "            if not 200 <= result[\"status\"] < 300:", "            if False:"),
+    ("an API connect has no time limit", "packages/adapters/api/__init__.py", "(base.netloc, timeout=timeout_ms / 1000 if timeout_ms else None)", "(base.netloc)"),
+    ("a cancelled API call still sends its request", "packages/adapters/api/__init__.py", "                call.check()  # a cancel came during the connect: send nothing\n", "                pass\n"),
     ("the brief describe gives every schema", RT, "        elif detail == \"brief\":", "        elif False:"),
 ]
 

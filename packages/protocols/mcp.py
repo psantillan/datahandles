@@ -51,7 +51,7 @@ def main() -> None:
     p.add_argument("--state", help="the state directory of a runtime in this process")
     p.add_argument("--url", help="the URL of a runtime behind the HTTP transport; the token is in DATAHANDLES_TOKEN")
     p.add_argument("--principal", default="agent", help="the principal of each tool call (with --state)")
-    p.add_argument("--register", action="append", default=[], metavar="NAME=ADAPTER:PATH",
+    p.add_argument("--register", action="append", default=[], metavar="NAME=ADAPTER:PATH_OR_URL",
                    help="create a resource handle at the start if the name has none; repeat for more resources")
     a = p.parse_args()
     if bool(a.state) == bool(a.url):

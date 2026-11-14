@@ -6,8 +6,10 @@ it in parts (`response.get`, `response.keys`), and a graph over it replays exact
 
 Rules:
 - Each request goes to the scheme, host, and port of the base URL, under its path. A path with a
-  scheme, a host, or a `..` segment is refused.
+  scheme, a host, or a `..` segment is refused. The check reads the path as a server would after
+  it decodes percent escapes, so `%2e%2e` is a `..` segment too.
 - A redirect is not followed. The answer gives its status and its `location`.
+- `api.fetch` stores only a 2xx response. Each other status is an error with the status in its details.
 - A token never goes into the registry. `token_env` names an environment variable of the process
   that runs the adapter; its value goes in the header `Authorization: Bearer ...` of each request.
 - `api.post` is an action (it writes, it reaches outside, it is not idempotent). In a graph it needs
@@ -19,7 +21,7 @@ import socket
 import time
 from http.client import HTTPConnection, HTTPException, HTTPSConnection
 from pathlib import Path
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import unquote, urlencode, urlsplit
 
 from ...core import DEFAULT_MAX_OUTPUT_BYTES, HandleError, capability, new_id
 from ...runtime.adapter import Derived, ResourceAdapter, ResourceRef, Value
@@ -38,9 +40,11 @@ _POINTER = {"type": "array", "items": {"type": ["string", "integer"]}, "descript
 _API_CAPS = [
     capability("api.get", "GET a path. Return the status and the JSON body. A body larger than the size limit gives its shape only: "
                "then use api.fetch and read the response in parts.", {"path": _PATH, "query": _QUERY}, required=["path"], external=True),
-    capability("api.fetch", "GET a path and store the response as a handle that never changes. No body goes to the caller.",
+    capability("api.fetch", "GET a path and store the response as a handle that never changes. No body goes to the caller. "
+               "A status that is not 2xx is an error, and nothing is stored.",
                {"path": _PATH, "query": _QUERY}, required=["path"], returns="handle", external=True),
-    capability("api.post", "POST a JSON body to a path. This changes the service.", {"path": _PATH, "json": {}},
+    capability("api.post", "POST a JSON body to a path. This changes the service. A reply larger than the size limit gives its shape only.",
+               {"path": _PATH, "json": {}},
                required=["path"], write=True, external=True, idempotent=False),
 ]
 _RESPONSE_CAPS = [
@@ -76,7 +80,7 @@ class Adapter(ResourceAdapter):
     # ---- the service ----------------------------------------------------------------------------
 
     def open(self, source: dict) -> ResourceRef:
-        base = urlsplit(source.get("base_url", ""))
+        base = urlsplit(source.get("base_url") or source.get("path", ""))  # a source given as one string arrives as `path`
         if base.scheme not in ("http", "https") or not base.netloc or base.query or base.fragment:
             raise HandleError("INVALID_INPUT", "base_url must be an http or https URL with a host and no query")
         timeout_ms, limit = source.get("timeout_ms"), source.get("max_response_bytes", MAX_RESPONSE_BYTES)
@@ -90,9 +94,12 @@ class Adapter(ResourceAdapter):
         return ResourceRef("api", locator, "")
 
     def _url(self, ref: ResourceRef, path: str, query: dict | None) -> tuple:
-        if not path.startswith("/") or path.startswith("//") or "://" in path or ".." in path.split("?")[0].split("/") or "?" in path or "#" in path:
-            raise HandleError("INVALID_INPUT", f"path {path!r} must start with / and have no host, no query, and no .. segment",
-                              details={"base_url": ref.locator["base_url"]})
+        # A server decodes percent escapes, and some servers read \ as /, before they resolve `..`.
+        segments = unquote(path).replace("\\", "/").split("/")
+        if (not path.startswith("/") or path.startswith("//") or "://" in path or "?" in path or "#" in path or ".." in segments
+                or not all("!" <= c <= "~" for c in path)):
+            raise HandleError("INVALID_INPUT", f"path {path!r} must start with / and have no host, no query, and no .. segment; "
+                              "percent-encode a space or a character that is not ASCII", details={"base_url": ref.locator["base_url"]})
         base = urlsplit(ref.locator["base_url"])
         target = base.path + path
         if query:
@@ -105,12 +112,15 @@ class Adapter(ResourceAdapter):
         if ref.locator["token_env"]:
             token = os.environ.get(ref.locator["token_env"])
             if not token:
-                raise HandleError("INVALID_INPUT", f"the environment variable {ref.locator['token_env']} is not set in the runtime process")
+                raise HandleError("INVALID_INPUT", f"the environment variable {ref.locator['token_env']} is not set in the process that runs the adapter")
             headers["Authorization"] = f"Bearer {token}"
         data = None
         if body is not None:
             data, headers["Content-Type"] = json.dumps(body).encode(), "application/json"
-        conn = (HTTPSConnection if base.scheme == "https" else HTTPConnection)(base.netloc)
+        # The cancel hook below cannot reach a socket that is not connected yet. So the time limit is
+        # also the socket timeout: it ends a connect that gets no answer.
+        timeout_ms = ref.locator["timeout_ms"]
+        conn = (HTTPSConnection if base.scheme == "https" else HTTPConnection)(base.netloc, timeout=timeout_ms / 1000 if timeout_ms else None)
 
         def stop():  # a cancel or a time limit: wake the socket read
             if conn.sock is not None:
@@ -121,6 +131,9 @@ class Adapter(ResourceAdapter):
         remove = call.on_cancel(stop) if call is not None else (lambda: None)
         limit = ref.locator["max_response_bytes"]
         try:
+            conn.connect()
+            if call is not None:
+                call.check()  # a cancel came during the connect: send nothing
             conn.request(method, target, data, headers)
             reply = conn.getresponse()
             raw = reply.read(limit + 1)
@@ -134,6 +147,8 @@ class Adapter(ResourceAdapter):
         except (OSError, HTTPException) as e:
             if call is not None:
                 call.check()
+            if isinstance(e, TimeoutError):
+                raise HandleError("OPERATION_TIMEOUT", f"{method} {target}: no answer in {timeout_ms} ms", details={"timeout_ms": timeout_ms}) from e
             raise HandleError("ADAPTER_ERROR", f"{method} {target}: {type(e).__name__}: {e}", retryable=True) from e
         finally:
             remove()
@@ -145,6 +160,20 @@ class Adapter(ResourceAdapter):
             return json.loads(result["body"])
         except ValueError:
             return None
+
+    def _answer(self, result: dict, hint: str) -> dict:
+        """The bounded form of a live answer: the JSON body, or only its shape when it is over the size limit."""
+        parsed = self._json(result)
+        out = {"status": result["status"], "content_type": result["content_type"], "bytes": result["bytes"]}
+        if "location" in result:
+            out["location"] = result["location"]
+        if parsed is None:
+            out["text"] = result["body"][:2048].decode("utf-8", "replace")
+        elif len(json.dumps(parsed).encode()) <= DEFAULT_MAX_OUTPUT_BYTES - _ENVELOPE:
+            out["json"] = parsed
+        else:
+            out.update(truncated=True, shape=_shape(parsed), hint=hint)
+        return out
 
     # ---- the stored responses --------------------------------------------------------------------
 
@@ -193,7 +222,6 @@ class Adapter(ResourceAdapter):
             (self._dir / f"{ref.locator['response']}.json").unlink(missing_ok=True)
 
     def invoke(self, ref: ResourceRef, capability: str, input: dict, *, eager: bool, call) -> Value | Derived:
-        budget = DEFAULT_MAX_OUTPUT_BYTES - _ENVELOPE
         if ref.type == "response":
             if capability == "response.status":
                 s = self._stored(ref)
@@ -214,22 +242,19 @@ class Adapter(ResourceAdapter):
                                kind="computation", consistency="snapshot")
             raise HandleError("CAPABILITY_NOT_FOUND", capability)
         if capability == "api.post":
+            # The service changed already, so a large reply must not become an error: give its shape.
             result = self._request(ref, "POST", input["path"], body=input.get("json"), call=call)
-            return Value({"status": result["status"], "json": self._json(result)}, "")
+            return Value(self._answer(result, "the reply is larger than the size limit: only its shape is given"), "")
         result = self._request(ref, "GET", input["path"], input.get("query"), call=call)
-        parsed = self._json(result)
         if capability == "api.get":
-            out = {"status": result["status"], "content_type": result["content_type"], "bytes": result["bytes"]}
-            if "location" in result:
-                out["location"] = result["location"]
-            if parsed is None:
-                out["text"] = result["body"][:2048].decode("utf-8", "replace")
-            elif len(json.dumps(parsed).encode()) <= budget:
-                out["json"] = parsed
-            else:
-                out.update(truncated=True, shape=_shape(parsed), hint="the body is larger than the size limit: use api.fetch and read it in parts")
-            return Value(out, "")
+            return Value(self._answer(result, "the body is larger than the size limit: use api.fetch and read it in parts"), "")
         if capability == "api.fetch":
+            if not 200 <= result["status"] < 300:
+                raise HandleError("ADAPTER_ERROR", f"GET {result['url']} gave the status {result['status']}: api.fetch stores only a 2xx response",
+                                  retryable=result["status"] == 429 or result["status"] >= 500,
+                                  details={"status": result["status"], "location": result.get("location"),
+                                           "text": result["body"][:2048].decode("utf-8", "replace")})
+            parsed = self._json(result)
             response_id = new_id("rsp")
             stored = {"status": result["status"], "content_type": result["content_type"], "bytes": result["bytes"], "url": result["url"],
                       "fetched_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "json": parsed,
