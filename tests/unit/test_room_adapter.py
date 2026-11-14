@@ -111,3 +111,37 @@ def test_a_subscription_works_over_http_as_server_sent_events(tmp_path):
     finally:
         server.shutdown()
         server.server_close()
+
+
+def test_an_event_larger_than_the_size_limit_ends_the_stream(tmp_path):
+    from datahandles.core import capability
+    from datahandles.runtime.adapter import ResourceAdapter, ResourceRef, Value
+
+    class Loud(ResourceAdapter):
+        name = "loud"
+
+        def open(self, source):
+            return ResourceRef("loud", {}, "1")
+
+        def describe(self, ref):
+            return {"description": "Events that grow."}
+
+        def discover(self, ref):
+            return [capability("loud.events", "Each event is larger.", mode="stream", max_output_bytes=100)]
+
+        def observe(self, ref):
+            return {"version": "1"}
+
+        def invoke(self, ref, capability, input, *, eager, call):
+            raise AssertionError("not called")
+
+        def stream(self, ref, capability, input, call):
+            for size in (10, 50, 500):
+                yield Value("x" * size, "1")
+
+    paul = Client(Runtime(tmp_path / "state", adapters=(Loud(),)), "paul")
+    events = paul.register("loud", adapter="loud", source={}).subscribe("loud.events")
+    assert [len(next(events)), len(next(events))] == [10, 50]
+    with pytest.raises(HandleError) as e:
+        next(events)
+    assert e.value.code == "RESULT_TOO_LARGE"

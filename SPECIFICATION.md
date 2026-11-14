@@ -1,6 +1,6 @@
 # DataHandles Protocol Specification
 
-Version 0.2. The key words MUST, MUST NOT, SHOULD, and MAY have the meanings of RFC 2119.
+Version 0.3. The key words MUST, MUST NOT, SHOULD, and MAY have the meanings of RFC 2119.
 
 This file and the JSON Schemas in `spec/protocol/` define the protocol. The Python code in
 `packages/` is one implementation of it. Where the code and this file differ, this file governs
@@ -114,6 +114,37 @@ Schema: `spec/protocol/graphs.schema.json`.
 - When a value is requested from a `computation` handle, the adapter runs the full plan at the
   resource. Intermediate data does not go to the caller.
 
+**Node identity and reuse.** A runtime that runs graphs SHOULD give each node a key and reuse
+the result of a node that did not change:
+
+- A resource node: its handle id and its version now (`resource.observe`).
+- An operation node: its capability, its plain input, lazy or eager, and the keys of the nodes
+  that it takes. For a capability with `execution.deterministic` `true`, the key of a resource
+  node that it takes directly does not include the version.
+- If the same principal ran a node with an equal key before, and the handle it made is still
+  live, the stored result is the result again, with `metadata.reused` `true`. The operation does
+  not run. So a caller can change one node and run the graph again: only that node and the nodes
+  after it run.
+- A node that fails or waits blocks the nodes after it. They do not run and have no result.
+  Nodes that do not depend on it still run.
+
+**Actions.** An action is a capability that writes (`effects.write`), reaches outside
+(`effects.external`), and is not idempotent. In a graph:
+
+- An action node has a structural key: handle ids, capabilities, and inputs, with no versions,
+  because the action itself changes the version of its target.
+- It MUST run only with an unused approval for its key. The run MUST use the approval when it
+  starts, so an action that stops in the middle needs a new approval.
+- With no approval: an action that ran before gives its stored result (`reused`), and an action
+  that never ran gets the status `waiting`.
+- An edit of the action, or of a node before it, gives a new key that needs its own approval.
+
+**A graph as a handle.** A runtime MAY offer a graph as a resource (type `graph`) with these
+capabilities: `graph.run` (run it and return the result of each node; with `execution.async`
+it is a job), `graph.set` (derive a graph with new input for one node), and `graph.approve`
+(record one approval for one node). `graph.approve` is a write, so a principal that may run a
+graph does not also get the right to approve its actions.
+
 ## 8. Authorization
 
 - A grant names a principal, a handle, and capability names (or `*` for all).
@@ -150,7 +181,7 @@ Schema: `spec/protocol/graphs.schema.json`.
 |---|---|
 | `latest` | Each operation reads the current state of the resource. |
 | `snapshot` | The handle is pinned to one version. Later changes to the resource do not change its answers. |
-| `continuous` | A stream of changes. Reserved. Not in a v0.1 runtime. |
+| `continuous` | A live source whose readings come one after another, for example a sensor. A caller subscribes to it, or records a window of it. |
 
 A `result` handle is a snapshot. A `computation` handle on a `latest` resource is `latest`: its
 plan runs again on each request for a value.
@@ -212,15 +243,20 @@ for an id that does not exist.
 | `limits.timeout_ms` is set by the capability, not by the caller | The adapter knows how long an action can take. An operation has no field for it, so a caller cannot remove a limit. |
 | `OPERATION_TIMEOUT` is not `retryable` | A call that passed its limit once will probably pass it again. A write may have taken effect. |
 | A cancel and a time limit are cooperative (section 18) | A runtime cannot stop a thread safely. The adapter knows how to stop its own work: kill a process, cancel a page load. |
+| A graph node is reused by key, per principal | "Change one part and run it again" must not run the unchanged parts. A result belongs to the principal that made it, so reuse does too. |
+| An action has a structural key and needs an approval for each run | A physical action must never run again by accident. A versioned key would see a new version after each run and run it again. |
+| A failed or waiting node blocks only the nodes after it | A waiting action must not stop a simulation branch that does not depend on it. |
+| `execution.deterministic` on a capability | A recorded window of a live source never changes, but the version of the source does. Without this flag, a graph would record the window again on each run. |
+| Streams use `execution.mode` `stream` and `operation.subscribe` | The schema reserved the mode. A stream is many bounded values, so it is not one OperationResult. |
+| `handle.describe` with `detail` `brief` and `capability` | One full description of a dataset handle cost a 9B model about 1,230 prompt tokens (`benchmarks/AGENT_RESULTS.md`, v0.2). Most calls need the schema of one capability. |
 
 ## 13. Not in the reference runtime yet
 
 The schemas reserve these. The reference runtime does not implement them. See `ROADMAP.md`.
 
-- The result status `waiting`.
 - `execution.priority`, `execution.deadline`, `lifecycle.expires_at`.
-- `continuous` consistency, subscriptions, and an event stream (SSE).
 - Worker heartbeats, leases, and scheduling between workers.
+- A stream from a handle on a remote worker.
 
 ## 14. Jobs
 
@@ -301,14 +337,15 @@ A runtime that offers the protocol over HTTP MUST follow this binding.
 | `handle.create` | `name`, `adapter`, `source`, optional `worker` | Handle |
 | `handle.resolve` | `name` | Handle |
 | `handle.list` | | A list of Handles: each live handle that the principal holds a capability on |
-| `handle.describe` | `handle` | Handle |
+| `handle.describe` | `handle`, optional `detail` (`full` or `brief`), optional `capability` | Handle. `brief`: each capability with its name, description, and returns, no schemas. `capability`: only that capability, in full. |
 | `handle.release` | `handle` | null |
 | `handle.grant` | `handle`, `to`, `capabilities` | null |
 | `handle.revoke` | `handle`, `from` | null |
 | `resource.observe` | `handle` | An object with `version` |
-| `operation.invoke` | `operation` | OperationResult |
+| `operation.invoke` | `operation` | OperationResult. A capability with `execution.mode` `stream` gives `INVALID_INPUT`. |
+| `operation.subscribe` | `operation` | For a capability with `execution.mode` `stream`: `text/event-stream`, one `data:` line for each event, `{"result": {"output": ..., "version": ...}}`. An error after the start is the last event, `{"error": Error}`. An error before the start is a JSON reply as for other methods. The client closes the connection to stop. |
 | `graph.export` | `handle` | Graph |
-| `graph.submit` | `graph` | An object with `results` (operation node id to OperationResult) and `handles` (node id to handle id). The run stops at the first operation that fails. |
+| `graph.submit` | `graph` | An object with `results` (operation node id to OperationResult) and `handles` (node id to handle id). A node that fails or waits blocks the nodes after it (section 7). |
 
 - `handle.create` makes the runtime open a location that the caller names. A runtime MUST limit
   it to principals that the operator trusts, and it answers `CAPABILITY_DENIED` to each other
@@ -377,7 +414,22 @@ entry point in the group `datahandles.adapters` of an installed package. A built
 |---|---|---|---|---|
 | `memory` | A JSON value in the runtime process | `object` | each object | not needed |
 | `filesystem` | A read-only directory tree | `filesystem` | each tree | not needed |
-| `duckdb` | Parquet, CSV, and DuckDB files | `dataset` | the whole adapter | not built |
+| `duckdb` | Parquet, CSV, and DuckDB files | `dataset` | the whole adapter | interrupts the query |
 | `git` | A git repository, read-only | `repository` | each repository | kills the git process |
 | `browser` | A headless Chromium session (Playwright) | `browser_session` | each session | cancels the page task |
+| `room` | A simulated room: a temperature sensor and a heater (`continuous`); recorded windows | `room`, `window` | each room | ends a stream |
+| `sim` | A simulation of the room; each state never changes, so a state forks | `sim_state` | each state | checks between steps |
+| `graph` | A computation graph (inside the runtime, which does its capabilities) | `graph` | none | reaches the node that runs |
+
+**Streams.** A capability with `execution.mode` `stream` has a `stream(ref, capability, input,
+call)` method in its adapter. It yields one bounded value for each event and stops soon after the
+call is cancelled. The runtime cancels the call when the subscriber stops.
+
+**Versions and reuse.** A graph reuses a result when the version of a resource did not change. So
+an adapter MUST change the version when the state changes. An adapter that cannot know (a live
+web page) gives a new version on each observe, and a graph never reuses its results.
+
+**The graph adapter and principals.** An adapter never sees a principal. The graph adapter is the
+exception, like the job adapter: the runtime does its capabilities, because a graph runs
+operations for a principal.
 

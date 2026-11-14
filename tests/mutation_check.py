@@ -70,6 +70,22 @@ MUTANTS = [
     ("a cancel does not kill the git process", GIT, "            call.on_cancel(proc.kill)", "            pass"),
     ("a browser opens any URL scheme", WEB, "if urlsplit(url).scheme not in (\"http\", \"https\"):", "if False:"),
     ("a cancel does not reach the browser task", WEB, "            call.on_cancel(future.cancel)", "            pass"),
+    # v0.3: graph reuse, actions and approvals, windows, streams, brief describe, DuckDB cancel
+    ("a graph never reuses a node", RT, "                before = self.registry.node_run(principal, key)\n", "                before = None\n"),
+    ("a principal reuses the node of another principal", RT, "                before = self.registry.node_run(principal, key)\n", "                before = self.registry.node_run(\"paul\", key)\n"),
+    ("a node key has no source version", RT, "\"version\": self.observe(principal, node[\"reference\"])[\"version\"]", "\"version\": \"\""),
+    ("an action runs with no approval", RT, "if action and self.registry.take_approval(key, op_id, _now()) is None:", "if False:"),
+    ("an approval allows more than one run", REG, "            self._all(\"UPDATE approvals SET used_at = ?, used_by = ? WHERE seq = ?\", (at, operation_id, rows[0][\"seq\"]))\n", ""),
+    ("an action key has the version of its target", RT, "key, op_id = (structural[nid] if action else keys[nid]), new_id(\"op\")", "key, op_id = keys[nid], new_id(\"op\")"),
+    ("a failed node does not block the nodes after it", RT, "            if any(e[\"from\"] in blocked for e in sources):", "            if False:"),
+    ("a graph cancel does not reach its nodes", RT, "\"strategy\": \"eager\" if eager else \"lazy\"}}, queue=False, call=call)", "\"strategy\": \"eager\" if eager else \"lazy\"}}, queue=False, call=None)"),
+    ("a deterministic node keeps the source version", RT, "                if deterministic:", "                if False:"),
+    ("a stream capability runs through invoke", RT, "            if cap[\"execution\"][\"mode\"] == \"stream\":", "            if False:"),
+    ("subscribe takes a capability that is not a stream", RT, "        if cap[\"execution\"][\"mode\"] != \"stream\":", "        if False:"),
+    ("a memory object shares the value of the caller", "packages/adapters/memory/__init__.py", "[copy.deepcopy(source[\"value\"]), 1]", "[source[\"value\"], 1]"),
+    ("a cancel does not interrupt the DuckDB query", DB, "        remove = call.on_cancel(self.db.interrupt)", "        remove = lambda: None"),
+    ("a stream event has no size limit", RT, "                if size > limit:\n                    raise HandleError(\"RESULT_TOO_LARGE\", f\"an event", "                if False:\n                    raise HandleError(\"RESULT_TOO_LARGE\", f\"an event"),
+    ("the agent describe gives every schema", "packages/protocols/tools.py", "            info = handle.describe(brief=True)", "            info = handle.describe()"),
 ]
 
 
