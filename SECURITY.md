@@ -13,6 +13,10 @@ vulnerability.
 - An adapter receives names and values, never query text. The DuckDB adapter quotes each
   identifier, checks each column against the schema, and binds each value as a parameter.
 - The filesystem adapter is read-only and keeps each path, symlinks included, inside its root.
+- The git adapter is read-only. It reads commits and trees, never the work tree. Git resolves each
+  path inside a commit. A rev or a path that starts with `-` is refused, and external diff programs
+  and text conversion are off.
+- The browser adapter opens only http and https URLs.
 - Each value output has a size limit that the runtime enforces.
 - The HTTP transport takes the principal from a bearer token, never from the request body. Only
   principals that the operator lists can create a resource handle.
@@ -32,4 +36,8 @@ vulnerability.
 - There is no sandbox. An adapter runs in the runtime process, or in the worker process, with its full rights.
 - A principal that can register a resource can point an adapter at any path that the runtime
   process can read. Give the right to register only to trusted principals.
-- There are no timeouts and no resource quotas for one operation.
+- A browser session can reach every http and https address that the runtime or worker process can
+  reach, local network addresses included. Give the browser adapter only to trusted principals, or
+  run it on a worker in a network that holds nothing private.
+- A time limit (`limits.timeout_ms`) and a cancel are cooperative. An adapter that does not honour
+  them keeps running and keeps its lock. There are no resource quotas for one operation.

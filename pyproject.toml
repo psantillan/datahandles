@@ -15,11 +15,12 @@ dependencies = ["jsonschema>=4.18"]
 [project.optional-dependencies]
 duckdb = ["duckdb>=1.0"]
 mcp = ["mcp>=2.1"]
-dev = ["pytest>=8", "duckdb>=1.0", "mcp>=2.1"]
+browser = ["playwright>=1.65.2"]
+dev = ["pytest>=8", "duckdb>=1.0", "mcp>=2.1", "playwright>=1.65.2"]
 
 # The repository tree follows ARCHITECTURE.md section 11. Python sees packages/ as `datahandles`.
 [tool.setuptools]
-packages = ["datahandles", "datahandles.core", "datahandles.runtime", "datahandles.adapters", "datahandles.adapters.memory", "datahandles.adapters.filesystem", "datahandles.adapters.duckdb", "datahandles.adapters.git", "datahandles.sdk", "datahandles.protocols", "datahandles.workers"]
+packages = ["datahandles", "datahandles.core", "datahandles.runtime", "datahandles.adapters", "datahandles.adapters.memory", "datahandles.adapters.filesystem", "datahandles.adapters.duckdb", "datahandles.adapters.git", "datahandles.adapters.browser", "datahandles.sdk", "datahandles.protocols", "datahandles.workers"]
 
 [tool.setuptools.package-dir]
 datahandles = "packages"
