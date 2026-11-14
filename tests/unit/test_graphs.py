@@ -179,3 +179,77 @@ def test_after_a_restart_a_graph_job_goes_on_and_a_finished_node_does_not_run_ag
     assert out["results"]["fast"]["metadata"]["reused"] and out["results"]["long"]["output"] == {"waited": "a"}
     assert lists(runtime) == 1  # the fast node did not run again
     slow.opened["a"].set()  # let the attempt of the stopped runtime end
+
+
+class Lamp(ResourceAdapter):
+    """A lamp in the world. `lamp.switch` changes it: it writes, it reaches outside, and it is not idempotent."""
+    name = "lamp"
+
+    def __init__(self, state_dir=None):
+        self.switches, self.on = 0, False
+
+    def open(self, source):
+        return ResourceRef("lamp", {}, "0")
+
+    def describe(self, ref):
+        return {"description": "A lamp."}
+
+    def discover(self, ref):
+        return [capability("lamp.switch", "Switch the lamp.", {"on": {"type": "boolean"}}, required=["on"],
+                           write=True, external=True, idempotent=False),
+                capability("lamp.state", "Return the state of the lamp.")]
+
+    def observe(self, ref):
+        return {"version": str(self.switches)}
+
+    def invoke(self, ref, capability, input, *, eager, call):
+        if capability == "lamp.switch":
+            self.switches, self.on = self.switches + 1, input["on"]
+        return Value({"on": self.on, "switches": self.switches}, str(self.switches))
+
+
+def lamp_graph(lamp: str) -> dict:
+    """Switch the lamp on, then read its state."""
+    return {"id": "g", "execution": {"strategy": "lazy", "consistency": "latest"},
+            "nodes": [{"id": "lamp", "kind": "resource", "reference": lamp},
+                      {"id": "switch", "kind": "operation", "operation": {"capability": "lamp.switch", "input": {"on": True}}},
+                      {"id": "read", "kind": "operation", "operation": {"capability": "lamp.state", "input": {}}}],
+            "edges": [{"from": "lamp", "to": "switch"}, {"from": "lamp", "to": "read"}]}
+
+
+def test_an_action_waits_for_an_approval_and_one_approval_allows_one_run(tmp_path):
+    lamp = Lamp()
+    runtime = Runtime(tmp_path / "state", adapters=(lamp,))
+    paul = Client(runtime, "paul")
+    g = paul.register("flow", adapter="graph", source={"graph": lamp_graph(paul.register("lamp", adapter="lamp", source={}).id)})
+    first = g.invoke("graph.run")["results"]
+    assert first["switch"]["status"] == "waiting" and "read" not in first and lamp.switches == 0
+    assert violations("results", first["switch"]) == []
+    # Approval needs its own grant: a principal that can run the graph cannot approve.
+    g.grant("bob", ["graph.run"])
+    with pytest.raises(HandleError) as e:
+        Client(runtime, "bob").resolve(g.id).invoke("graph.approve", {"node": "switch"})
+    assert e.value.code == "CAPABILITY_DENIED"
+    g.invoke("graph.approve", {"node": "switch"})
+    ran = g.invoke("graph.run")["results"]
+    assert ran["switch"]["output"] == {"on": True, "switches": 1} and ran["read"]["output"]["on"] and lamp.switches == 1
+    # A finished action never runs again by itself, also when its target has a new version.
+    again = g.invoke("graph.run")["results"]
+    assert again["switch"]["metadata"]["reused"] and lamp.switches == 1
+    # A new approval is a deliberate second run.
+    g.invoke("graph.approve", {"node": "switch"})
+    g.invoke("graph.run")
+    assert lamp.switches == 2
+
+
+def test_an_edited_action_is_a_new_action_and_needs_its_own_approval(tmp_path):
+    lamp = Lamp()
+    paul = Client(Runtime(tmp_path / "state", adapters=(lamp,)), "paul")
+    g = paul.register("flow", adapter="graph", source={"graph": lamp_graph(paul.register("lamp", adapter="lamp", source={}).id)})
+    g.invoke("graph.approve", {"node": "switch"})
+    g.invoke("graph.run")
+    off = g.invoke("graph.set", {"node": "switch", "input": {"on": False}})
+    assert off.invoke("graph.run")["results"]["switch"]["status"] == "waiting" and lamp.switches == 1
+    with pytest.raises(HandleError) as e:
+        g.invoke("graph.approve", {"node": "nothing"})
+    assert e.value.code == "INVALID_INPUT"

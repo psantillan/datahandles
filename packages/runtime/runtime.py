@@ -15,7 +15,7 @@ from pathlib import Path
 
 from ..core import HandleError, check_input, digest as _key, edit_distance, new_id, topological_order, violations
 from .adapter import Call, Derived, Known, Locked, ResourceAdapter, ResourceRef, Value
-from .graphs import GraphAdapter, check as check_graph
+from .graphs import GraphAdapter, check as check_graph, is_action
 from .jobs import JobAdapter
 from .plugins import adapter_class
 from .registry import Record, Registry
@@ -32,6 +32,27 @@ def _now() -> str:
 
 def _is_handle_input(v) -> bool:
     return isinstance(v, dict) and set(v) == {"$handle"}
+
+
+def _eager(graph: dict, nid: str) -> bool:
+    kinds = {n["id"]: n["kind"] for n in graph["nodes"]}
+    stored = any(kinds[e["to"]] == "materialized" for e in graph["edges"] if e["from"] == nid)
+    return stored or graph["execution"]["strategy"] == "eager"
+
+
+def _structural_keys(graph: dict) -> dict:
+    """The key of each node from the graph definition alone: handle ids, capabilities, and inputs, no versions."""
+    nodes, keys = {n["id"]: n for n in graph["nodes"]}, {}
+    for nid in topological_order(graph):
+        node, sources = nodes[nid], [e for e in graph["edges"] if e["to"] == nid]
+        if node["kind"] == "resource":
+            keys[nid] = _key({"structural": True, "handle": node["reference"]})
+        elif node["kind"] == "operation":
+            keys[nid] = _key({"structural": True, "capability": node["operation"]["capability"], "input": node["operation"]["input"],
+                              "eager": _eager(graph, nid), "sources": sorted([e.get("input_name", ""), keys[e["from"]]] for e in sources)})
+        else:
+            keys[nid] = keys[sources[0]["from"]] if sources else _key({"structural": True, "orphan": nid})
+    return keys
 
 
 def _allows(held: set, capability: str) -> bool:
@@ -352,6 +373,12 @@ class Runtime:
         graph = rec.locator["graph"]
         if capability == "graph.run":
             return Value(self.run_graph(principal, graph, call), rec.version)
+        if capability == "graph.approve":
+            if not any(n["id"] == input["node"] and n["kind"] == "operation" for n in graph["nodes"]):
+                raise HandleError("INVALID_INPUT", f"no operation node {input['node']!r} in this graph")
+            key = _structural_keys(graph)[input["node"]]
+            self.registry.add_approval(key, input["node"], principal, _now())
+            return Value({"approved": input["node"], "unused": sum(a["used_at"] is None for a in self.registry.approvals(key))}, rec.version)
         if capability == "graph.set":
             node = next((n for n in graph["nodes"] if n["id"] == input["node"] and n["kind"] == "operation"), None)
             if node is None:
@@ -511,14 +538,21 @@ class Runtime:
         principal ran an equal node before, and its output handle is still live, the stored result is
         the result again (metadata.reused true) and the operation does not run.
 
+        A node that changes the world (graphs.is_action) has a structural key instead: no versions,
+        because the action itself changes the version of its target. It runs only with an unused
+        approval for that key (graph.approve), and the run uses the approval at its start. With no
+        approval, a node that ran before gives its stored result, and a node that never ran gets the
+        status `waiting`.
+
         Return {"results": {operation node id: OperationResult}, "handles": {node id: handle id}}.
-        The run stops at the first operation that fails. A cancel of `call` stops it before the next node.
+        The run stops at the first operation that fails or waits. A cancel of `call` stops it before the next node.
         """
         bad = violations("graphs", graph)
         if bad:
             raise HandleError("INVALID_INPUT", bad[0], details={"violations": bad})
         nodes = {n["id"]: n for n in graph["nodes"]}
         incoming = {i: [e for e in graph["edges"] if e["to"] == i] for i in nodes}
+        structural = _structural_keys(graph)
         bound, results, keys = {}, {}, {}
         for nid in topological_order(graph):
             node, sources = nodes[nid], incoming[nid]
@@ -533,22 +567,31 @@ class Runtime:
                     raise HandleError("INVALID_INPUT", f"operation node {nid} needs exactly one target edge")
                 input = dict(node["operation"]["input"])
                 input.update({e["input_name"]: {"$handle": bound[e["from"]]} for e in sources if "input_name" in e})
-                stored = any(nodes[e["to"]]["kind"] == "materialized" for e in graph["edges"] if e["from"] == nid)
-                eager = stored or graph["execution"]["strategy"] == "eager"
+                eager = _eager(graph, nid)
                 keys[nid] = _key({"capability": node["operation"]["capability"], "input": node["operation"]["input"], "eager": eager,
                                   "sources": sorted([e.get("input_name", ""), keys[e["from"]]] for e in sources)})
-                before = self.registry.node_run(principal, keys[nid])
-                if before and all(self._held_live(principal, h["id"]) for h in before.get("handles", [])):
+                try:
+                    action = is_action(self._capability(principal, self._resolve(principal, targets[0]), node["operation"]["capability"]))
+                except HandleError:
+                    action = False  # the run below gives the error
+                key, op_id = (structural[nid] if action else keys[nid]), new_id("op")
+                before = self.registry.node_run(principal, key)
+                if before and not all(self._held_live(principal, h["id"]) for h in before.get("handles", [])):
+                    before = None
+                if action and self.registry.take_approval(key, op_id, _now()) is None:
+                    r = ({**before, "metadata": {**before["metadata"], "reused": True}} if before else
+                         {"operation_id": op_id, "status": "waiting", "metadata": {}})
+                elif before and not action:
                     r = {**before, "metadata": {**before["metadata"], "reused": True}}
                 else:
                     r = self._perform(principal, {
-                        "id": new_id("op"), "target": targets[0], "capability": node["operation"]["capability"], "input": input,
+                        "id": op_id, "target": targets[0], "capability": node["operation"]["capability"], "input": input,
                         "execution": {"mode": "auto", "strategy": "eager" if eager else "lazy"}}, queue=False, call=call)
                     if r["status"] == "completed":
-                        self.registry.put_node_run(principal, keys[nid], r, _now())
+                        self.registry.put_node_run(principal, key, r, _now())
                 results[nid] = r
                 if r["status"] != "completed":
-                    break
+                    break  # failed or waiting
                 if "handles" in r:
                     bound[nid] = r["handles"][0]["id"]
             else:  # derived or materialized: the output of the one operation before it

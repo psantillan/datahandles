@@ -17,7 +17,14 @@ _CAPS = [
                "The output has the result of each operation node and the handle of each node."),
     capability("graph.set", "Derive a graph with a new input for one operation node. The other nodes stay.",
                {"node": _NODE, "input": {"type": "object"}}, required=["node", "input"], returns="handle"),
+    capability("graph.approve", "Allow one run of a node that changes the world. Without an approval such a node waits.",
+               {"node": _NODE}, required=["node"], write=True, idempotent=False),
 ]
+
+
+def is_action(cap: dict) -> bool:
+    """A capability that changes the world: it writes, it reaches outside, and a second run is not safe."""
+    return cap["effects"]["write"] and cap["effects"]["external"] and not cap["execution"]["idempotent"]
 
 
 def check(graph: dict) -> dict:

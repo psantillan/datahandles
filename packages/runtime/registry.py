@@ -30,6 +30,9 @@ CREATE TABLE IF NOT EXISTS jobs (
 CREATE TABLE IF NOT EXISTS node_runs (
   principal TEXT NOT NULL, key TEXT NOT NULL, result TEXT NOT NULL, at TEXT NOT NULL,
   PRIMARY KEY (principal, key));
+CREATE TABLE IF NOT EXISTS approvals (
+  seq INTEGER PRIMARY KEY, key TEXT NOT NULL, node TEXT NOT NULL, approver TEXT NOT NULL, at TEXT NOT NULL,
+  used_at TEXT, used_by TEXT);
 CREATE TABLE IF NOT EXISTS workers (
   id TEXT PRIMARY KEY, url TEXT NOT NULL, key TEXT NOT NULL, info TEXT NOT NULL, registered_at TEXT NOT NULL);
 """
@@ -191,6 +194,21 @@ class Registry:
 
     def put_node_run(self, principal: str, key: str, result: dict, at: str) -> None:
         self._all("INSERT OR REPLACE INTO node_runs VALUES (?, ?, ?, ?)", (principal, key, json.dumps(result), at))
+
+    def add_approval(self, key: str, node: str, approver: str, at: str) -> None:
+        self._insert("approvals", {"key": key, "node": node, "approver": approver, "at": at})
+
+    def take_approval(self, key: str, operation_id: str, at: str) -> dict | None:
+        """Use one unused approval for this key and return it. An approval allows one run."""
+        with self._lock:
+            rows = self._all("SELECT * FROM approvals WHERE key = ? AND used_at IS NULL ORDER BY seq LIMIT 1", (key,))
+            if not rows:
+                return None
+            self._all("UPDATE approvals SET used_at = ?, used_by = ? WHERE seq = ?", (at, operation_id, rows[0]["seq"]))
+            return dict(rows[0])
+
+    def approvals(self, key: str) -> list[dict]:
+        return [dict(r) for r in self._all("SELECT * FROM approvals WHERE key = ? ORDER BY seq", (key,))]
 
     # ---- workers ------------------------------------------------------------------------------
 
