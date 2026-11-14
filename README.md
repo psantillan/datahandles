@@ -1,16 +1,40 @@
 # DataHandles
 
-A protocol and a reference runtime that let an AI agent work on a resource through a reference,
-with no copy of the resource in its context.
+[![tests](https://github.com/psantillan/datahandles/actions/workflows/tests.yml/badge.svg)](https://github.com/psantillan/datahandles/actions/workflows/tests.yml)
+[![release](https://img.shields.io/github/v/release/psantillan/datahandles)](https://github.com/psantillan/datahandles/releases)
+![python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
+[![license](https://img.shields.io/github/license/psantillan/datahandles)](LICENSE)
 
-An agent gets a **handle**: an opaque id, a type, a schema, and a list of typed capabilities.
-It invokes capabilities on the handle. A capability returns a new handle (no data moves) or a
-bounded value (a small, size-limited answer). The computation runs where the resource is.
+An AI agent answers a join-and-aggregate question over 100 million rows and receives 3.7 KB.
+The rows themselves are 9.2 GB as JSON. They never leave the place where they are stored.
+
+DataHandles is a protocol and a reference runtime for this. An agent gets a **handle**: an opaque
+id, a type, a schema, and a list of typed capabilities. It invokes capabilities on the handle. A
+capability returns a new handle (no data moves) or a bounded value (a small, size-limited
+answer). The computation runs where the resource is. A local 9B model on one GTX 1080 answered
+12 of 12 benchmark questions this way, with a peak prompt of 5,015 tokens.
 
 The property that this project tests:
 
 > Context consumption should scale with the complexity of the question, not the size of the
 > underlying dataset.
+
+![Bytes that reach the caller: rows as JSON grow from 878 kB to 9.2 GB; protocol bytes stay at 3.7 kB](benchmarks/context_efficiency.svg)
+
+```mermaid
+flowchart LR
+  A["Agent<br/>(any model)"] <-- "calls on handle ids;<br/>new handles and<br/>bounded values back" --> R
+  subgraph R["Runtime"]
+    direction TB
+    G["Grant check<br/>for each call"] --> P["Plan, job queue,<br/>operation log"]
+  end
+  R -- "signed task" --> W["Worker<br/>(optional)"]
+  R --> L["Local adapter"]
+  W --> D[("Resource:<br/>Parquet, files,<br/>objects")]
+  L --> D
+```
+
+The agent sees only the left side of this picture. Rows, files, and credentials stay on the right.
 
 ## Measured
 
@@ -47,6 +71,24 @@ The model gave the correct answer in 12 of 12 runs. The check is one direct SQL 
 The prompt grows with the question. It does not grow with the dataset. The rows of the smallest
 dataset as JSON would cost about 353,667 tokens (35.4 tokens for each row, measured), which is 43
 times the context window.
+
+The calls of the join question on 100,000,000 rows, from the recorded transcript (ids shortened):
+
+```text
+Q: Which 3 countries have the most revenue from 'purchase' events? ...
+
+handle_describe(events)                                   -> schema and 9 capabilities
+handle_describe(customers)                                -> schema and 9 capabilities
+handle_invoke(events,    dataset.filter, event_type = purchase)  -> handle …TGEJ
+handle_invoke(customers, dataset.head,   n = 10)                 -> 10 rows
+handle_invoke(…TGEJ,     dataset.join,   right = customers, on customer_id) -> handle …0N3
+handle_invoke(…0N3,      dataset.aggregate, sum(amount) by country)          -> handle …MY10
+handle_invoke(…MY10,     dataset.sort,   revenue descending)     -> handle …TAG2
+handle_invoke(…TAG2,     dataset.limit,  n = 3)                  -> handle …N3Y
+handle_invoke(…N3Y,      dataset.head)   -> [["BR", 480478088.8], ["MX", 477718993.2], ["US", 477524682.5]]
+
+A: The 3 country codes are BR, MX, US.
+```
 
 Two runs had failed tool calls, and the model recovered in both from the typed errors:
 
@@ -99,7 +141,7 @@ The full program is [`examples/quickstart.py`](examples/quickstart.py). It makes
 - **Authorization is separate from the handle.** A handle id gives no authority. The runtime
   checks each operation against the grants of the principal. A derived handle gives no more
   than the handles it derives from.
-- **Adapters.** A resource type is one class with five methods: `describe`, `discover`,
+- **Adapters.** A resource type is one class with six methods: `open`, `describe`, `discover`,
   `invoke`, `observe`, `release`. The core does not know any resource type. Three adapters
   exist: `memory` (JSON objects), `filesystem` (read-only directory tree), `duckdb` (Parquet,
   CSV, and DuckDB files).
@@ -209,7 +251,7 @@ packages/sdk/         Python client
 tests/integration/    acceptance tests
 tests/conformance/    protocol tests that run against any implementation
 tests/unit/           jobs, worker, transports
-benchmarks/           context-efficiency benchmarks and results
+benchmarks/           benchmarks, results, and the chart (plot.py draws it)
 ```
 
 Python imports `packages/` as `datahandles`.

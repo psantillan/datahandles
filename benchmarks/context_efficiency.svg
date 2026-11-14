@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 380" width="720" height="380" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" role="img" aria-labelledby="t d">
+<title id="t">Bytes to the caller versus dataset size</title>
+<desc id="d">10,000 rows: rows as JSON 877,653 B, protocol bytes 3,730 B; 100,000 rows: rows as JSON 8,879,634 B, protocol bytes 3,731 B; 1,000,000 rows: rows as JSON 89,794,093 B, protocol bytes 3,732 B; 10,000,000 rows: rows as JSON 907,936,490 B, protocol bytes 3,734 B; 100,000,000 rows: rows as JSON 9,179,443,674 B, protocol bytes 3,739 B</desc>
+<style>
+  .bg { fill: #fcfcfb } .t1 { fill: #0b0b0b } .t2 { fill: #52514e } .grid { stroke: #e4e3df } .axis { stroke: #8f8e88 }
+  .s1 { stroke: #2a78d6 } .s1f { fill: #2a78d6 } .s2 { stroke: #eb6834 } .s2f { fill: #eb6834 } .ring { stroke: #fcfcfb }
+  @media (prefers-color-scheme: dark) {
+    .bg { fill: #1a1a19 } .t1 { fill: #f0efec } .t2 { fill: #c3c2b7 } .grid { stroke: #333331 } .axis { stroke: #6d6c66 }
+    .s1 { stroke: #3987e5 } .s1f { fill: #3987e5 } .s2 { stroke: #d95926 } .s2f { fill: #d95926 } .ring { stroke: #1a1a19 }
+  }
+</style>
+<rect class="bg" width="720" height="380" rx="6"/>
+<text class="t1" x="92" y="26" font-size="15" font-weight="600">One question, five operations: bytes that reach the caller</text>
+<text class="t2" x="92" y="44" font-size="12">Log scales. The dataset grows 10,000 times. The protocol bytes grow by 9 bytes.</text>
+<line class="grid" x1="92" x2="524" y1="316.0" y2="316.0" stroke-width="1"/>
+<text class="t2" x="82" y="320.0" font-size="11" text-anchor="end">1 kB</text>
+<line class="grid" x1="92" x2="524" y1="251.0" y2="251.0" stroke-width="1"/>
+<text class="t2" x="82" y="255.0" font-size="11" text-anchor="end">100 kB</text>
+<line class="grid" x1="92" x2="524" y1="186.0" y2="186.0" stroke-width="1"/>
+<text class="t2" x="82" y="190.0" font-size="11" text-anchor="end">10 MB</text>
+<line class="grid" x1="92" x2="524" y1="121.0" y2="121.0" stroke-width="1"/>
+<text class="t2" x="82" y="125.0" font-size="11" text-anchor="end">1 GB</text>
+<line class="grid" x1="92" x2="524" y1="56.0" y2="56.0" stroke-width="1"/>
+<text class="t2" x="82" y="60.0" font-size="11" text-anchor="end">100 GB</text>
+<text class="t2" x="92.0" y="336" font-size="11" text-anchor="middle">10,000</text>
+<text class="t2" x="200.0" y="336" font-size="11" text-anchor="middle">100,000</text>
+<text class="t2" x="308.0" y="336" font-size="11" text-anchor="middle">1,000,000</text>
+<text class="t2" x="416.0" y="336" font-size="11" text-anchor="middle">10,000,000</text>
+<text class="t2" x="524.0" y="336" font-size="11" text-anchor="middle">100,000,000</text>
+<line class="axis" x1="92" x2="524" y1="316" y2="316" stroke-width="1"/>
+<text class="t2" x="308.0" y="362" font-size="12" text-anchor="middle">Rows in the events table</text>
+<polyline class="s2" fill="none" stroke-width="2" stroke-linejoin="round" points="92.0,220.3 200.0,187.7 308.0,155.0 416.0,122.4 524.0,89.7"/>
+<circle class="s2f ring" cx="92.0" cy="220.3" r="4.5" stroke-width="2"><title>10,000 rows: 877,653 B</title></circle>
+<circle class="s2f ring" cx="200.0" cy="187.7" r="4.5" stroke-width="2"><title>100,000 rows: 8,879,634 B</title></circle>
+<circle class="s2f ring" cx="308.0" cy="155.0" r="4.5" stroke-width="2"><title>1,000,000 rows: 89,794,093 B</title></circle>
+<circle class="s2f ring" cx="416.0" cy="122.4" r="4.5" stroke-width="2"><title>10,000,000 rows: 907,936,490 B</title></circle>
+<circle class="s2f ring" cx="524.0" cy="89.7" r="4.5" stroke-width="2"><title>100,000,000 rows: 9,179,443,674 B</title></circle>
+<text class="t1" x="536.0" y="87.7" font-size="12" font-weight="600">Rows as JSON</text>
+<text class="t2" x="536.0" y="102.7" font-size="11">9.2 GB at 100,000,000</text>
+<polyline class="s1" fill="none" stroke-width="2" stroke-linejoin="round" points="92.0,297.4 200.0,297.4 308.0,297.4 416.0,297.4 524.0,297.4"/>
+<circle class="s1f ring" cx="92.0" cy="297.4" r="4.5" stroke-width="2"><title>10,000 rows: 3,730 B</title></circle>
+<circle class="s1f ring" cx="200.0" cy="297.4" r="4.5" stroke-width="2"><title>100,000 rows: 3,731 B</title></circle>
+<circle class="s1f ring" cx="308.0" cy="297.4" r="4.5" stroke-width="2"><title>1,000,000 rows: 3,732 B</title></circle>
+<circle class="s1f ring" cx="416.0" cy="297.4" r="4.5" stroke-width="2"><title>10,000,000 rows: 3,734 B</title></circle>
+<circle class="s1f ring" cx="524.0" cy="297.4" r="4.5" stroke-width="2"><title>100,000,000 rows: 3,739 B</title></circle>
+<text class="t1" x="536.0" y="295.4" font-size="12" font-weight="600">Protocol bytes to the caller</text>
+<text class="t2" x="536.0" y="310.4" font-size="11">3.7 kB at 100,000,000</text>
+</svg>
