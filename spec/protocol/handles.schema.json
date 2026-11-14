@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:datahandles:spec:0.2:handles.schema.json",
+  "$id": "urn:datahandles:spec:0.3:handles.schema.json",
   "title": "Handle",
   "type": "object",
   "additionalProperties": false,
@@ -54,7 +54,7 @@
       "items": {
         "anyOf": [
           {
-            "$ref": "urn:datahandles:spec:0.2:capabilities.schema.json"
+            "$ref": "urn:datahandles:spec:0.3:capabilities.schema.json"
           },
           {
             "type": "object",

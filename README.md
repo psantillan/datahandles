@@ -275,7 +275,7 @@ OLLAMA_URL=http://localhost:11434 OLLAMA_MODEL=ornith-1.5:9b .venv/bin/python be
   over HTTP, and with a worker. With `DATAHANDLES_URL` and two tokens it runs against any runtime
   that offers the HTTP binding ([`SPECIFICATION.md`](SPECIFICATION.md) section 17). No second
   implementation exists yet.
-- The mutation check removes 54 guards from the source, one at a time, and confirms that a test
+- The mutation check removes 69 guards from the source, one at a time, and confirms that a test
   fails for each.
 - Install from a checkout with `-e`. The schemas load from `spec/protocol/` in the repository tree.
 - The benchmark argument is the largest row count. `100000000` needs about 11 GB of free disk.

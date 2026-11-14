@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:datahandles:spec:0.2:graphs.schema.json",
+  "$id": "urn:datahandles:spec:0.3:graphs.schema.json",
   "title": "ComputationGraph",
   "type": "object",
   "additionalProperties": false,

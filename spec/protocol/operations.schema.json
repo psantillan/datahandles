@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:datahandles:spec:0.2:operations.schema.json",
+  "$id": "urn:datahandles:spec:0.3:operations.schema.json",
   "title": "Operation",
   "type": "object",
   "additionalProperties": false,
