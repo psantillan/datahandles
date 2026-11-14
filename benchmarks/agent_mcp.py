@@ -93,5 +93,39 @@ def main(runs: int) -> None:
     (HERE / "agent_mcp_results.json").write_text(json.dumps(out, indent=1) + "\n")
 
 
+def report() -> None:
+    """Write AGENT_MCP_RESULTS.md from agent_mcp_results.json. This step needs no model."""
+    d = json.loads((HERE / "agent_mcp_results.json").read_text())
+    runs = d["runs"]
+    rows = []
+    for i, r in enumerate(runs, 1):
+        caps = [c["capability"] for c in r["tool_calls"] if c["capability"]]
+        rows.append(f"| {i} | {len(r['tool_calls'])} | {sum(c.startswith('repo.') for c in caps)} | {sum(c.startswith('browser.') for c in caps)} | "
+                    f"{sum(c['failed'] for c in r['tool_calls'])} | {r['peak_prompt_tokens']:,} | {r['seconds']} s | {'correct' if r['correct'] else 'WRONG'} |")
+    peaks = [r["peak_prompt_tokens"] for r in runs]
+    lines = ["# Agent task over two kinds of resource, through MCP", "",
+             f"Made by `benchmarks/agent_mcp.py` on {d['date']}. Model `{d['model']}` on Ollama (one GTX 1080), temperature 0,",
+             f"context window {d['num_ctx']:,} tokens. Raw data with every message: `agent_mcp_results.json`.", "",
+             "## Task", "",
+             "The model gets the three tools of the MCP server (`handle_find`, `handle_describe`, `handle_invoke`) and no handle id.",
+             "The server holds a git repository handle and a browser session handle (`benchmarks/task_fixture.py`).", "",
+             f"> {task_fixture.QUESTION}", "",
+             f"The repository says where the status page is. The release notes on that site list the newest version, {task_fixture.ANSWER}.",
+             f"The README names an older version, {task_fixture.DECOY}, so an answer from the repository alone is wrong.", "",
+             "## Results", "", f"{len(runs)} runs. Each run starts a new MCP server, a new state directory, and a new repository.", "",
+             "| Run | Tool calls | Git calls | Browser calls | Failed calls | Peak prompt tokens | Time | Answer |",
+             "|---:|---:|---:|---:|---:|---:|---:|---|", *rows, "",
+             f"- {sum(r['correct'] for r in runs)} of {len(runs)} answers name {task_fixture.ANSWER}. "
+             f"{sum(r['used_git'] and r['used_browser'] for r in runs)} of {len(runs)} runs used both handles.",
+             f"- The peak prompt is {min(peaks):,} to {max(peaks):,} tokens. `handle_describe` gives the brief form (see `DESCRIBE_COMPARISON.md`).",
+             "- No code in the server, the runtime, or the tools knows that one handle is a repository and the other is a browser.", "",
+             "## Method notes", "",
+             f"- The answer check: the final reply contains \"{task_fixture.ANSWER}\". (The first run of this benchmark, in v0.2, also required that",
+             f"  the reply not contain \"{task_fixture.DECOY}\". The model named it only to say that it is older, so that rule was dropped.)",
+             "- A failed call is a tool result with an error. The model corrects it from the error and goes on.",
+             "- Ollama with temperature 0 and a fixed seed does not give the same tool calls in each run."]
+    (HERE / "AGENT_MCP_RESULTS.md").write_text("\n".join(lines) + "\n")
+
+
 if __name__ == "__main__":
-    main(int(sys.argv[1]) if len(sys.argv) > 1 else 1)
+    report() if sys.argv[1:] == ["report"] else main(int(sys.argv[1]) if len(sys.argv) > 1 else 1)

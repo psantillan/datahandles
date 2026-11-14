@@ -23,6 +23,11 @@ vulnerability.
 - A task to a worker carries an HMAC-SHA256 signature, an expiry time, and an id that the worker
   accepts one time. A worker hosts only the adapters that its operator lists.
 - All checks run again when a job starts, so a revoked grant stops a queued job.
+- In a graph, an action (a capability that writes, reaches outside, and is not idempotent) runs
+  only with an approval, and one approval allows one run. Approving is a separate grant
+  (`graph.approve`) from running (`graph.run`).
+- An input error gives the input schema of the capability, which the caller can already see
+  with `handle.describe`. It never gives data.
 
 `tests/mutation_check.py` removes each of these guards in turn and confirms that a test fails.
 

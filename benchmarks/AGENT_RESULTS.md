@@ -6,17 +6,25 @@ The model gets two tools (`handle_describe`, `handle_invoke`) and two handle ids
 
 | Question | Operations needed | 10,000 rows | 1,000,000 rows | 100,000,000 rows |
 |---|---:|---|---|---|
-| count | 1 | 1,988 tok / 2 (0) / correct | 1,998 tok / 2 (0) / correct | 2,030 tok / 2 (0) / correct |
-| filter | 2 | 2,202 tok / 3 (0) / correct | 2,212 tok / 3 (0) / correct | 2,240 tok / 3 (0) / correct |
-| group | 4 | 3,827 tok / 6 (0) / correct | 3,924 tok / 6 (0) / correct | 2,862 tok / 13 (9) / correct |
-| join | 5 | 4,802 tok / 10 (0) / correct | 5,015 tok / 12 (3) / correct | 4,569 tok / 9 (0) / correct |
+| count | 1 | 1,267 tok / 2 (0) / correct | 953 tok / 2 (1) / correct | 1,711 tok / 3 (0) / correct |
+| filter | 2 | 1,779 tok / 4 (1) / correct | 1,733 tok / 5 (3) / correct | 1,891 tok / 4 (1) / correct |
+| group | 4 | 2,589 tok / 7 (2) / correct | 3,052 tok / 8 (2) / correct | 2,542 tok / 7 (2) / correct |
+| join | 5 | 4,610 tok / 14 (4) / WRONG | 4,796 tok / 14 (4) / correct | 5,132 tok / 15 (6) / correct |
 
 For comparison: one event row as JSON costs 35.4 prompt tokens with this model (measured on 30 rows). The rows of each dataset as JSON would cost about 353,667 tokens (10,000 rows), 35,366,667 tokens (1,000,000 rows), 3,536,666,667 tokens (100,000,000 rows) (calculated from the per-row cost). The context window of this run is 8,192 tokens.
 
 Runs with a failed tool call:
 
-- **join**, 1,000,000 rows: 3 `HANDLE_NOT_FOUND`. The model made 2 `handle_describe` calls. Its final answer was correct.
-- **group**, 100,000,000 rows: 2 `CAPABILITY_NOT_FOUND`, 7 `INVALID_INPUT`. The model made 0 `handle_describe` calls. Its final answer was correct.
+- **filter**, 10,000 rows: 1 `INVALID_INPUT`. The model made 1 `handle_describe` calls. Its final answer was correct.
+- **group**, 10,000 rows: 2 `INVALID_INPUT`. The model made 1 `handle_describe` calls. Its final answer was correct.
+- **join**, 10,000 rows: 4 `INVALID_INPUT`. The model made 2 `handle_describe` calls. Its final answer was WRONG.
+- **count**, 1,000,000 rows: 1 `CAPABILITY_NOT_FOUND`. The model made 1 `handle_describe` calls. Its final answer was correct.
+- **filter**, 1,000,000 rows: 1 `CAPABILITY_NOT_FOUND`, 2 `INVALID_INPUT`. The model made 0 `handle_describe` calls. Its final answer was correct.
+- **group**, 1,000,000 rows: 2 `INVALID_INPUT`. The model made 2 `handle_describe` calls. Its final answer was correct.
+- **join**, 1,000,000 rows: 4 `INVALID_INPUT`. The model made 2 `handle_describe` calls. Its final answer was correct.
+- **filter**, 100,000,000 rows: 1 `INVALID_INPUT`. The model made 1 `handle_describe` calls. Its final answer was correct.
+- **group**, 100,000,000 rows: 2 `INVALID_INPUT`. The model made 1 `handle_describe` calls. Its final answer was correct.
+- **join**, 100,000,000 rows: 2 `HANDLE_NOT_FOUND`, 4 `INVALID_INPUT`. The model made 4 `handle_describe` calls. Its final answer was correct.
 
 Questions:
 

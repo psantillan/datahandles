@@ -6,6 +6,7 @@ report the prediction and the state of the heater action (benchmarks/v03_fixture
 
 Needs an Ollama server with a model that supports tool calls.
 Run: OLLAMA_URL=http://localhost:11434 OLLAMA_MODEL=some-model .venv/bin/python benchmarks/agent_v03.py [runs]
+Compute the checks again from the saved runs: .venv/bin/python benchmarks/agent_v03.py recheck
 """
 import json
 import os
@@ -73,12 +74,24 @@ def check(r: dict) -> dict:
         "recorded_window": "room.record" in by and mean is not None,
         "set_start_to_mean": any(s.get("node") == "start" and abs(s.get("input", {}).get("temperature", 1e9) - (mean or 0)) < 0.01 for s in sets),
         "reused_unchanged_node": bool(last) and last.get("baseline", {}).get("metadata", {}).get("reused", False),
-        "ran_changed_nodes": bool(last) and not any(last.get(n, {}).get("metadata", {}).get("reused", True) for n in ("start", "heat", "predict_on")),
+        "ran_changed_nodes": bool(last) and all(last.get(n, {}).get("status") == "completed" and not last[n]["metadata"].get("reused", False)
+                                                for n in ("start", "heat", "predict_on")),
         "action_waits": bool(last) and last.get("switch", {}).get("status") == "waiting",
         "answer_prediction": expected is not None and any(abs(n - expected) < 0.05 for n in numbers),
         "answer_says_waiting": bool(re.search(r"wait|approv", r["answer"], re.I)),
         "expected": expected,
     }
+
+
+def recheck() -> None:
+    """Compute the checks again from the saved runs. No model is needed."""
+    path = HERE / "agent_v03_results.json"
+    out = json.loads(path.read_text())
+    for r in out["runs"]:
+        r["check"] = check(r)
+        r["correct"] = all(v for k, v in r["check"].items() if k != "expected")
+    path.write_text(json.dumps(out, indent=1) + "\n")
+    print([r["correct"] for r in out["runs"]])
 
 
 def main(runs: int) -> None:
@@ -96,5 +109,49 @@ def main(runs: int) -> None:
     (HERE / "agent_v03_results.json").write_text(json.dumps(out, indent=1) + "\n")
 
 
+def report() -> None:
+    """Write AGENT_V03_RESULTS.md from agent_v03_results.json. This step needs no model."""
+    d = json.loads((HERE / "agent_v03_results.json").read_text())
+    runs = d["runs"]
+    names = [k for k in runs[0]["check"] if k != "expected"]
+    rows = []
+    for i, r in enumerate(runs, 1):
+        stats = [c["output"]["output"] for c in r["calls"] if c["tool"] == "handle_invoke" and not c["failed"]
+                 and c["arguments"].get("capability") == "window.stats"]
+        window = f"{stats[-1]['first_seq']} to {stats[-1]['last_seq']}" if stats else "-"
+        rows.append(f"| {i} | {window} | {r['check']['expected']} | {len(r['calls'])} | {sum(c['failed'] for c in r['calls'])} | "
+                    f"{r['peak_prompt_tokens']:,} | {r['seconds']} s | {sum(r['check'][n] for n in names)} of {len(names)} |")
+    lines = ["# v0.3 acceptance: an agent edits and runs a graph over a sensor, a simulation, and an action", "",
+             f"Made by `benchmarks/agent_v03.py` on {d['date']}. Model `{d['model']}` on Ollama (one GTX 1080), temperature 0,",
+             f"context window {d['num_ctx']:,} tokens, through the MCP server. Raw data with every message: `agent_v03_results.json`.", "",
+             "## Task", "",
+             "The model gets the three MCP tools and no handle id. The runtime holds a live room (a sensor and a heater), a",
+             "simulation of the room, and a graph `plan` over both (`benchmarks/v03_fixture.py`). The agent may run and edit the",
+             "graph. It may not approve the heater action. Before the task, the graph ran one time for the agent.", "",
+             f"> {v03_fixture.TASK}", "",
+             "## Checks", "",
+             "Each check comes from the tool calls of the run, not from the reply alone:", "",
+             "- `recorded_window`: the agent recorded a window and read its statistics.",
+             "- `set_start_to_mean`: it set the node `start` to the mean of that window (within 0.01).",
+             "- `reused_unchanged_node`: in its last graph run, the node `baseline` (which does not depend on `start`) was reused.",
+             "- `ran_changed_nodes`: in that run, `start`, `heat`, and `predict_on` ran.",
+             "- `action_waits`: in that run, the heater switch had the status `waiting`.",
+             "- `answer_prediction`: the reply has the predicted temperature, from the model of the simulation (within 0.05).",
+             "- `answer_says_waiting`: the reply says that the switch waits for an approval.", "",
+             "## Results", "",
+             "| Run | Window (seq) | Predicted temperature | Tool calls | Failed calls | Peak prompt tokens | Time | Checks |",
+             "|---:|---|---:|---:|---:|---:|---:|---|", *rows, "",
+             f"- {sum(r['correct'] for r in runs)} of {len(runs)} runs pass every check.",
+             f"- The largest peak prompt is {max(r['peak_prompt_tokens'] for r in runs):,} tokens, with three handles and a graph of 12 nodes.", "",
+             "## Method notes", "",
+             "- The first computation of `ran_changed_nodes` read a node with no `reused` field as reused, so it marked each run as",
+             "  failed. The function was corrected and the checks were computed again from the saved runs (`agent_v03.py recheck`).",
+             "- The task asks for the last 20 readings. No check tests \"last\": the window column shows which readings each run used.",
+             "  Run 1 recorded readings 0 to 19, the first 20 of the room, not the last 20.",
+             "- Ollama with temperature 0 and a fixed seed does not give the same tool calls in each run."]
+    (HERE / "AGENT_V03_RESULTS.md").write_text("\n".join(lines) + "\n")
+
+
 if __name__ == "__main__":
-    main(int(sys.argv[1]) if len(sys.argv) > 1 else 1)
+    commands = {"recheck": recheck, "report": report}
+    commands[sys.argv[1]]() if sys.argv[1:2] and sys.argv[1] in commands else main(int(sys.argv[1]) if len(sys.argv) > 1 else 1)

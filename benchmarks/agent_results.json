@@ -15,17 +15,17 @@
         10000
       ],
       "correct": true,
-      "answer": "The events dataset has 10,000 rows.",
-      "peak_prompt_tokens": 1988,
+      "answer": "The events dataset has **10,000 rows**.",
+      "peak_prompt_tokens": 1267,
       "prompt_tokens_by_turn": [
-        653,
-        1886,
-        1988
+        689,
+        1150,
+        1267
       ],
       "tool_calls": 2,
       "tool_errors": 0,
-      "tool_result_bytes": 4029,
-      "seconds": 7.4
+      "tool_result_bytes": 1442,
+      "seconds": 8.3
     },
     {
       "question": "filter",
@@ -37,17 +37,18 @@
       ],
       "correct": true,
       "answer": "There are **3,270** events with the event_type 'purchase'.",
-      "peak_prompt_tokens": 2202,
+      "peak_prompt_tokens": 1779,
       "prompt_tokens_by_turn": [
-        654,
-        1887,
-        2101,
-        2202
+        690,
+        1139,
+        1466,
+        1678,
+        1779
       ],
-      "tool_calls": 3,
-      "tool_errors": 0,
-      "tool_result_bytes": 4305,
-      "seconds": 10.2
+      "tool_calls": 4,
+      "tool_errors": 1,
+      "tool_result_bytes": 2520,
+      "seconds": 12.7
     },
     {
       "question": "group",
@@ -58,20 +59,22 @@
         "click"
       ],
       "correct": true,
-      "answer": "The event_type with the largest total amount is **click** (total amount \u2248 343,209.80).",
-      "peak_prompt_tokens": 3827,
+      "answer": "The event_type with the largest total amount is **click**, with a total of approximately $343,210.",
+      "peak_prompt_tokens": 2589,
       "prompt_tokens_by_turn": [
-        658,
-        3104,
-        3321,
-        3516,
-        3687,
-        3827
+        694,
+        1165,
+        1543,
+        1757,
+        2040,
+        2237,
+        2430,
+        2589
       ],
-      "tool_calls": 6,
-      "tool_errors": 0,
-      "tool_result_bytes": 8663,
-      "seconds": 21.6
+      "tool_calls": 7,
+      "tool_errors": 2,
+      "tool_result_bytes": 3541,
+      "seconds": 30.3
     },
     {
       "question": "join",
@@ -83,24 +86,26 @@
         "JP",
         "CA"
       ],
-      "correct": true,
-      "answer": "The 3 countries with the most revenue from 'purchase' events, largest first, are:\n\n1. **MX** (Mexico) \u2014 $49,357.86\n2. **JP** (Japan) \u2014 $47,881.95\n3. **CA** (Canada) \u2014 $47,113.75",
-      "peak_prompt_tokens": 4802,
+      "correct": false,
+      "answer": "The 3 countries with the most revenue from 'purchase' events, largest first, are:\n\n- **JP** (Japan): \u00a5149,654.09\n- **MX** (Mexico): \u00a5145,832.75\n- **IN** (India): \u00a5145,216.69",
+      "peak_prompt_tokens": 4610,
       "prompt_tokens_by_turn": [
-        686,
-        3129,
-        3553,
-        3832,
-        4042,
-        4221,
-        4392,
-        4577,
-        4802
+        722,
+        1601,
+        2328,
+        2905,
+        3162,
+        3540,
+        3751,
+        4037,
+        4231,
+        4412,
+        4610
       ],
-      "tool_calls": 10,
-      "tool_errors": 0,
-      "tool_result_bytes": 9685,
-      "seconds": 41.1
+      "tool_calls": 14,
+      "tool_errors": 4,
+      "tool_result_bytes": 7422,
+      "seconds": 61.6
     },
     {
       "question": "count",
@@ -111,16 +116,16 @@
         1000000
       ],
       "correct": true,
-      "answer": "The events dataset has 1,000,000 rows.",
-      "peak_prompt_tokens": 1998,
+      "answer": "The events dataset has **1,000,000 rows**.",
+      "peak_prompt_tokens": 953,
       "prompt_tokens_by_turn": [
-        655,
-        1892,
-        1998
+        693,
+        847,
+        953
       ],
       "tool_calls": 2,
-      "tool_errors": 0,
-      "tool_result_bytes": 4031,
+      "tool_errors": 1,
+      "tool_result_bytes": 330,
       "seconds": 8.3
     },
     {
@@ -133,17 +138,19 @@
       ],
       "correct": true,
       "answer": "There are **332,867** events with the event_type 'purchase'.",
-      "peak_prompt_tokens": 2212,
+      "peak_prompt_tokens": 1733,
       "prompt_tokens_by_turn": [
-        656,
-        1893,
-        2109,
-        2212
+        694,
+        880,
+        1069,
+        1410,
+        1628,
+        1733
       ],
-      "tool_calls": 3,
-      "tool_errors": 0,
-      "tool_result_bytes": 4307,
-      "seconds": 10.5
+      "tool_calls": 5,
+      "tool_errors": 3,
+      "tool_result_bytes": 1767,
+      "seconds": 18.6
     },
     {
       "question": "group",
@@ -154,20 +161,22 @@
         "click"
       ],
       "correct": true,
-      "answer": "The aggregated results show the total amounts by event_type:\n- click: 33,483,852.07\n- purchase: 33,310,253.60\n- view: 33,283,648.67\n\nThe event_type with the largest total amount is **click**.",
-      "peak_prompt_tokens": 3924,
+      "answer": "The event_type with the largest total amount is **click**, with a total of approximately $33,483,852.07.",
+      "peak_prompt_tokens": 3052,
       "prompt_tokens_by_turn": [
-        660,
-        3110,
-        3338,
-        3534,
-        3725,
-        3924
+        698,
+        1588,
+        1963,
+        2180,
+        2469,
+        2662,
+        2853,
+        3052
       ],
-      "tool_calls": 6,
-      "tool_errors": 0,
-      "tool_result_bytes": 8724,
-      "seconds": 25.7
+      "tool_calls": 8,
+      "tool_errors": 2,
+      "tool_result_bytes": 4965,
+      "seconds": 34.7
     },
     {
       "question": "join",
@@ -180,25 +189,27 @@
         "MX"
       ],
       "correct": true,
-      "answer": "The 3 countries with the most revenue from 'purchase' events are:\n\n- **BR** (Brazil): 4,803,731.77\n- **US** (United States): 4,782,002.70\n- **MX** (Mexico): 4,776,612.67\n\nThe 3 country codes, largest first, are **BR, US, MX**.",
-      "peak_prompt_tokens": 5015,
+      "answer": "I've computed the revenue from 'purchase' events grouped by country. The top 3 countries by total purchase revenue are:\n\n1. **BR** \u2014 4,803,731.77\n2. **US** \u2014 4,782,002.70\n3. **MX** \u2014 4,776,612.67\n\nThe 3 country codes, largest first: **BR, US, MX**.",
+      "peak_prompt_tokens": 4796,
       "prompt_tokens_by_turn": [
-        688,
-        3135,
-        3545,
-        3820,
-        4034,
-        4231,
-        4400,
-        4537,
-        4674,
-        4819,
-        5015
+        726,
+        1613,
+        1992,
+        2414,
+        2650,
+        3068,
+        3355,
+        3734,
+        3948,
+        4245,
+        4427,
+        4613,
+        4796
       ],
-      "tool_calls": 12,
-      "tool_errors": 3,
-      "tool_result_bytes": 9840,
-      "seconds": 45.7
+      "tool_calls": 14,
+      "tool_errors": 4,
+      "tool_result_bytes": 7640,
+      "seconds": 66.9
     },
     {
       "question": "count",
@@ -209,17 +220,17 @@
         100000000
       ],
       "correct": true,
-      "answer": "The events dataset has **100,000,000** rows (100 million).",
-      "peak_prompt_tokens": 2030,
+      "answer": "The events dataset has **100,000,000** rows.",
+      "peak_prompt_tokens": 1711,
       "prompt_tokens_by_turn": [
-        653,
-        1907,
-        2030
+        693,
+        1580,
+        1711
       ],
-      "tool_calls": 2,
+      "tool_calls": 3,
       "tool_errors": 0,
-      "tool_result_bytes": 4033,
-      "seconds": 9.9
+      "tool_result_bytes": 2786,
+      "seconds": 12.3
     },
     {
       "question": "filter",
@@ -231,17 +242,18 @@
       ],
       "correct": true,
       "answer": "There are **33,329,428** events with the event_type 'purchase'.",
-      "peak_prompt_tokens": 2240,
+      "peak_prompt_tokens": 1891,
       "prompt_tokens_by_turn": [
-        654,
-        1907,
-        2136,
-        2240
+        694,
+        1170,
+        1539,
+        1773,
+        1891
       ],
-      "tool_calls": 3,
-      "tool_errors": 0,
-      "tool_result_bytes": 4309,
-      "seconds": 11.8
+      "tool_calls": 4,
+      "tool_errors": 1,
+      "tool_result_bytes": 2524,
+      "seconds": 17.8
     },
     {
       "question": "group",
@@ -252,26 +264,22 @@
         "click"
       ],
       "correct": true,
-      "answer": "The event_type with the largest total amount is **click**, with a total of approximately 3,333,812,673.67.\n\nFor reference:\n- click: 3,333,812,673.67\n- purchase: 3,333,545,499.14\n- view: 3,332,989,799.92",
-      "peak_prompt_tokens": 2862,
+      "answer": "The event_type with the largest total amount is **click**, with a total of approximately 3,333,812,673.67.",
+      "peak_prompt_tokens": 2542,
       "prompt_tokens_by_turn": [
-        658,
-        966,
-        1226,
-        1404,
-        1607,
-        1786,
-        1982,
-        2153,
-        2325,
-        2503,
-        2675,
-        2862
+        698,
+        1173,
+        1532,
+        1739,
+        2020,
+        2208,
+        2400,
+        2542
       ],
-      "tool_calls": 13,
-      "tool_errors": 9,
-      "tool_result_bytes": 3262,
-      "seconds": 42.1
+      "tool_calls": 7,
+      "tool_errors": 2,
+      "tool_result_bytes": 3555,
+      "seconds": 30.0
     },
     {
       "question": "join",
@@ -284,22 +292,29 @@
         "US"
       ],
       "correct": true,
-      "answer": "The 3 countries with the most revenue from 'purchase' events, largest first, are:\n\n1. **BR** (Brazil) \u2014 480,478,088.80\n2. **MX** (Mexico) \u2014 477,718,993.21\n3. **US** (United States) \u2014 477,524,682.50\n\nThe 3 country codes are **BR, MX, US**.",
-      "peak_prompt_tokens": 4569,
+      "answer": "The 3 countries with the most revenue from 'purchase' events are:\n\n1. **BR** (Brazil) \u2014 $480,478,088.80\n2. **MX** (Mexico) \u2014 $477,718,993.21\n3. **US** (United States) \u2014 $477,524,682.50\n\nThe 3 country codes, largest first: **BR, MX, US**.",
+      "peak_prompt_tokens": 5132,
       "prompt_tokens_by_turn": [
-        686,
-        3129,
-        3548,
-        3825,
-        4038,
-        4220,
-        4388,
-        4569
+        726,
+        1007,
+        1289,
+        2188,
+        2598,
+        2831,
+        3190,
+        3402,
+        3818,
+        4080,
+        4293,
+        4570,
+        4762,
+        4943,
+        5132
       ],
-      "tool_calls": 9,
-      "tool_errors": 0,
-      "tool_result_bytes": 9466,
-      "seconds": 37.9
+      "tool_calls": 15,
+      "tool_errors": 6,
+      "tool_result_bytes": 7864,
+      "seconds": 74.3
     }
   ]
 }

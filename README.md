@@ -14,9 +14,15 @@ bounded value (a small, size-limited answer). The runtime checks each call again
 the caller and runs it where the resource is: in process or on a remote worker. A long operation
 runs as a job, and the job is a handle too.
 
+Operations compose into a graph with a handle at each step, and the graph is a handle too. Change
+one node and run it again: only that node and the nodes after it run. An action that changes the
+world waits for an approval, and it never runs a second time by accident. A live source, such as a
+sensor, can be recorded into a window that never changes, so a graph over it replays exactly.
+
 A resource is anything that an adapter can wrap. This release has adapters for JSON objects, a
-read-only file tree, tabular files through DuckDB, git repositories, and browser sessions. An
-installed package can add more. The core does not know any of these types.
+read-only file tree, tabular files through DuckDB, git repositories, browser sessions, a simulated
+room with a sensor and a heater, and a simulation of that room. An installed package can add more.
+The core does not know any of these types.
 
 The property that this project tests:
 
@@ -66,17 +72,22 @@ Peak prompt tokens in one conversation:
 
 | Question | Operations needed | 10,000 rows | 1,000,000 rows | 100,000,000 rows |
 |---|---:|---:|---:|---:|
-| Count the rows | 1 | 1,988 | 1,998 | 2,030 |
-| Count the rows that pass a filter | 2 | 2,202 | 2,212 | 2,240 |
-| Group, sum, and find the largest group | 4 | 3,827 | 3,924 | 2,862 |
-| Join two datasets, filter, group, sum, top 3 | 5 | 4,802 | 5,015 | 4,569 |
+| Count the rows | 1 | 1,267 | 953 | 1,711 |
+| Count the rows that pass a filter | 2 | 1,779 | 1,733 | 1,891 |
+| Group, sum, and find the largest group | 4 | 2,589 | 3,052 | 2,542 |
+| Join two datasets, filter, group, sum, top 3 | 5 | 4,610 (wrong) | 4,796 | 5,132 |
 
-The model gave the correct answer in 12 of 12 runs. The check is one direct SQL statement.
+The model gave the correct answer in 11 of 12 runs. The check is one direct SQL statement.
 The prompt grows with the question. It does not grow with the dataset. The rows of the smallest
 dataset as JSON would cost about 353,667 tokens (35.4 tokens for each row, measured), which is 43
 times the context window.
 
-The calls of the join question on 100,000,000 rows, from the recorded transcript (ids shortened):
+`handle_describe` gives a brief form, and an input error carries the schema of its capability. With
+the full describe of v0.2 the same benchmark was 12 of 12 with higher prompts. The wrong run here
+joined the unfiltered events table. [`benchmarks/DESCRIBE_COMPARISON.md`](benchmarks/DESCRIBE_COMPARISON.md)
+has the three conditions side by side.
+
+The calls of the join question on 100,000,000 rows in the v0.2 run, with the full describe (ids shortened):
 
 ```text
 Q: Which 3 countries have the most revenue from 'purchase' events? ...
@@ -94,25 +105,23 @@ handle_invoke(…N3Y,      dataset.head)   -> [["BR", 480478088.8], ["MX", 47771
 A: The 3 country codes are BR, MX, US.
 ```
 
-Two runs had failed tool calls, and the model recovered in both from the typed errors:
-
-- One run (join, 1,000,000 rows) dropped one character from a 26-character handle id three times
-  (`HANDLE_NOT_FOUND`), then sent the correct id.
-- One run (group, 100,000,000 rows) made no `handle_describe` call. It guessed the capability
-  names and inputs, got 9 errors (`CAPABILITY_NOT_FOUND`, `INVALID_INPUT`), and corrected each
-  call from the error details. That is why its prompt is smaller than the other two in its row.
-
-One run for each cell, temperature 0. A `handle_describe` result costs about 1,230 tokens, which is
-the largest single part of each prompt.
-
 ### Two kinds of resource, through MCP
 
 The same 9B model got one task through the MCP server, with no handle id: a git repository says
 where its status page is, and the answer is on the release notes of that site. The README of the
 repository names an older version, so the repository alone gives a wrong answer. In 5 of 5 runs
 the model found both handles, read the repository, used the browser, and named the correct
-version. No tool call failed, and the peak prompt was 4,536 tokens. Method and every message:
+version. The peak prompt was 3,179 to 3,257 tokens. Method and every message:
 [`benchmarks/AGENT_MCP_RESULTS.md`](benchmarks/AGENT_MCP_RESULTS.md).
+
+### A graph over a sensor, a simulation, and an action
+
+The same model got the v0.3 task through MCP: record a window of a live room, start a simulation
+from its mean temperature by editing one node of a graph, run the graph again, and report the
+prediction. In 5 of 5 runs the node that did not change was reused, the changed nodes ran, the
+two forks of the simulation differed, and the heater action waited for an approval that the agent
+could not give. The peak prompt was at most 6,509 tokens.
+[`benchmarks/AGENT_V03_RESULTS.md`](benchmarks/AGENT_V03_RESULTS.md) has every check.
 
 ## Example
 
@@ -171,6 +180,17 @@ The full program is [`examples/quickstart.py`](examples/quickstart.py). It makes
 - **Cancel and time limits.** `job.cancel` stops the adapter call of a running job: the git
   adapter kills its process, the browser adapter cancels the page load. A capability can declare
   `limits.timeout_ms`; a call past it ends with `OPERATION_TIMEOUT`.
+- **Graphs.** Each graph node has a key: for a resource, its handle id and version; for an
+  operation, its capability, input, and the keys before it. A node with a known key gives its
+  stored result again (`metadata.reused`). A graph registers as a handle (`graph.run`,
+  `graph.set`, `graph.approve`), so it can run as a job, be edited into a new version, and be
+  granted like any other handle.
+- **Actions and approvals.** A capability that writes, reaches outside, and is not idempotent is
+  an action. In a graph it runs only with an approval, and one approval allows one run. Running
+  a graph and approving its actions are separate grants.
+- **Live sources and windows.** A `continuous` handle streams events (`operation.subscribe`,
+  server-sent events over HTTP). A window records a range of events as a handle that never
+  changes. A simulation state never changes either, so one state forks into several runs.
 - **Workers.** A resource can be on a remote worker, next to the data. The same program gives
   the same answers, and no handle shows where it runs.
 
@@ -216,9 +236,10 @@ The server uses stdio and needs the `mcp` package (`pip install -e ".[mcp]"`).
 
 ## State
 
-Version 0.2. Built: the protocol schemas, the runtime, five adapters, composition and graphs,
-the registry, async jobs on several threads with cancel and time limits, the remote worker, the
-HTTP transport, the MCP adapter, a Python client, installed adapters, and a conformance suite.
+Version 0.3. Built: the protocol schemas, the runtime, seven adapters, replayable graphs with
+approvals for actions, streams and recorded windows, the registry, async jobs on several threads
+with cancel and time limits, the remote worker, the HTTP transport, the MCP adapter, a Python
+client, installed adapters, and a conformance suite.
 [`ROADMAP.md`](ROADMAP.md) has the table with the evidence for each part, the plan for later
 versions, and the limits of the current code.
 
@@ -245,6 +266,7 @@ python3 -m venv .venv
 .venv/bin/python benchmarks/context_efficiency.py 10000000
 OLLAMA_URL=http://localhost:11434 OLLAMA_MODEL=ornith-1.5:9b .venv/bin/python benchmarks/agent_context.py 1000000
 OLLAMA_URL=http://localhost:11434 OLLAMA_MODEL=ornith-1.5:9b .venv/bin/python benchmarks/agent_mcp.py 5
+OLLAMA_URL=http://localhost:11434 OLLAMA_MODEL=ornith-1.5:9b .venv/bin/python benchmarks/agent_v03.py 5
 ```
 
 - `tests/integration/test_acceptance.py` has one test for each row of the acceptance table in
@@ -264,8 +286,8 @@ OLLAMA_URL=http://localhost:11434 OLLAMA_MODEL=ornith-1.5:9b .venv/bin/python be
 ```
 spec/protocol/        JSON Schemas (the protocol)
 packages/core/        ids, errors, schema validation, graph ordering
-packages/runtime/     runtime, registry, jobs, adapter contract
-packages/adapters/    memory, filesystem, duckdb, git, browser
+packages/runtime/     runtime, registry, jobs, graphs, adapter contract
+packages/adapters/    memory, filesystem, duckdb, git, browser, room, sim
 packages/workers/     the remote HTTP worker
 packages/protocols/   HTTP transport, MCP adapter, the tool surface for a language model
 packages/sdk/         Python client

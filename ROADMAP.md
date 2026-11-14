@@ -29,7 +29,7 @@ This is the v0.1 list of `ARCHITECTURE.md` section 14.
 | Context efficiency | Pass, measured in `benchmarks/RESULTS.md` |
 | Persistence | Pass for handles, grants, stored results, jobs, registered workers, and the operation log |
 | Security | Pass for grants, inheritance, input validation, path containment, bearer tokens on the HTTP transport, and signed tasks to a worker. No TLS in the runtime. |
-| Temporal correctness | Pass for `latest` and `snapshot`. `continuous` is not built. |
+| Temporal correctness | Pass for `latest`, `snapshot`, and `continuous` (a stream, and recorded windows that never change) |
 | Failure recovery | Pass: a failed operation is recorded and the runtime continues, a lost worker gives a typed error that a caller can retry, and a job that a restart interrupts runs again only if its capability is idempotent |
 
 ## v0.2: Any resource (built)
@@ -54,23 +54,23 @@ model works for data, and v0.1 shows that already. So the resource-independence 
 
 Steps 3 and 4 changed the adapter interface: `invoke` takes a `call`, and an adapter can declare `lock_key` (`SPECIFICATION.md` section 18).
 
-## v0.3: Replayable graphs
+## v0.3: Replayable graphs (built)
 
 Goal: a workflow is a graph of operations with a handle at each step. A caller can change one
 part and run it again, and only that part and the steps after it run. The same model must hold
 for long simulations, sensor streams, and actions in the physical world.
 
-| Step | State | Done when |
+| Step | State | Evidence |
 |---|---|---|
-| 1. A stable identity for each graph node, and reuse of unchanged results | Not built | Change one node of a five-step graph and submit it again: only that node and the nodes after it run (the operation log shows it), and the outputs equal a full run |
-| 2. Job nodes in a graph | Not built | A graph with a long node returns at once; a caller can observe and cancel it; after a restart the graph goes on without running a finished node again |
-| 3. Rules for actions that change the world | Not built | A finished node with an external, non-idempotent effect never runs again when the graph is submitted again; such a node waits in the status `waiting` until a principal with the right approves it |
-| 4. Recorded windows | Not built | A capability records the observations of a live source into a `result` handle; a graph over that handle gives equal outputs on each replay while the live source changes |
-| 5. Streams and subscriptions | Not built | `continuous` consistency and an event stream; a sensor-stream adapter (simulated sensor) delivers each new reading to a subscriber, and step 4 records a window of it |
-| 6. A simulation adapter with fork | Not built | Two forks of one state take different inputs and give different states; the parent state does not change; the same inputs on a new fork give an equal state |
-| 7. A brief form of `handle.describe` | Not built | Both agent benchmarks run again with a lower peak prompt and the same accuracy (12 of 12, 5 of 5) |
-| 8. A cancel hook for the DuckDB adapter (`DuckDBPyConnection.interrupt`) | Not built | A cancel stops a running query |
-| 9. Acceptance: one agent edits and runs a graph over a sensor, a simulation, and an action | Not built | Through the MCP server, an agent records a sensor window, forks a simulation from it, changes one node, runs the graph again (only the changed part runs), and the action node waits for approval |
+| 1. A stable identity for each graph node, and reuse of unchanged results | Built | `tests/unit/test_graphs.py`: change one node of a five-step graph, and only that node and the one after it run (two operation log rows); the output equals a full run |
+| 2. Job nodes in a graph | Built | same file: a graph registers as a handle; `graph.run` as a job returns at once and a cancel reaches the long node; after a restart the job goes on and the finished node does not run again |
+| 3. Rules for actions that change the world | Built | same file: an action waits until approved, one approval allows one run, a finished action is reused, an edited action needs a new approval, and a principal that may only run the graph cannot approve |
+| 4. Recorded windows | Built | `tests/unit/test_room_adapter.py`: a graph over a window gives equal outputs on each replay while the room goes on |
+| 5. Streams and subscriptions | Built | same file: a subscriber gets each new reading in order, in process and over HTTP (server-sent events) |
+| 6. A simulation adapter with fork | Built | `tests/unit/test_sim_adapter.py` |
+| 7. A brief form of `handle.describe` | Built; target partly met | `benchmarks/DESCRIBE_COMPARISON.md`: the peak prompt is lower in 11 of 12 dataset cells and in each two-resource run; two-resource 5 of 5 as before; dataset 11 of 12 against 12 of 12 (one run for each cell; the wrong run joined the unfiltered table) |
+| 8. A cancel hook for the DuckDB adapter (`DuckDBPyConnection.interrupt`) | Built | `tests/unit/test_duckdb_cancel.py`: a cancel ends a join of 6.4 billion rows in under 3 s |
+| 9. Acceptance: one agent edits and runs a graph over a sensor, a simulation, and an action | Built | `benchmarks/AGENT_V03_RESULTS.md`: a 9B model through the MCP server, 5 of 5 runs pass all seven checks; `tests/integration/test_v03_acceptance.py` makes the same calls |
 
 Steps 1 to 3 change only the runtime and the graph schema. Step 7 changes the protocol.
 
@@ -84,7 +84,7 @@ Steps 1 to 3 change only the runtime and the graph schema. Step 7 changes the pr
   (`ARCHITECTURE.md` section 14, v0.3).
 - A second implementation of the protocol.
 
-## Known limits of the 0.2 code
+## Known limits of the 0.3 code
 
 Transport and workers:
 
@@ -105,12 +105,25 @@ Jobs:
 
 - Jobs run on one thread for each CPU by default (`job_threads`), and start oldest first.
 - The DuckDB adapter keeps one lock for the whole adapter (one shared connection), so its long
-  jobs still run one at a time. It has no cancel hook: a cancel or a time limit gives the answer
-  at once, but the query runs to its end.
+  jobs still run one at a time.
 - A cancel and a time limit are cooperative. An adapter that does not honour them keeps running
   and keeps its lock until it returns.
 - The idempotency key applies to jobs only. A synchronous operation that a caller sends two times
   runs two times.
+
+Graphs:
+
+- Reuse trusts the version that an adapter gives. An adapter that changes state without a new
+  version would give a stale result.
+- An idempotent write inside a graph (for example `object.set`) changes the version of its target,
+  so the next run of the graph runs the nodes after it again.
+- An approval belongs to the structural key of an action, not to one graph. An approval in one
+  graph also allows the same action (same handles, same input) in another graph, one time.
+- An approved action runs with the grants of the principal that runs the graph. The approver does
+  not lend its grants.
+- An action that fails after it started uses its approval. A new approval is needed for a new try.
+- A stream runs only on a handle in the runtime process, not on a remote worker.
+- The room adapter is a simulation. Its physics numbers are assumed, not measured.
 
 Data:
 
@@ -124,16 +137,16 @@ Data:
 
 Agents:
 
-- A `handle_describe` result for a dataset costs a 9B model about 1,230 prompt tokens, because it
-  carries the full input schema of nine capabilities. A brief form (names and one line each, the
-  schema of one capability on request) is not built.
+- The brief `handle_describe` makes a model guess input shapes. The schema comes with the first
+  input error, so a model pays for a schema only when it guesses wrong. On the dataset benchmark
+  this gave 11 of 12 against 12 of 12 with the full describe (`benchmarks/DESCRIBE_COMPARISON.md`).
 - A handle id is 26 opaque characters. In one of 12 agent runs the model dropped a character when
   it copied an id (`benchmarks/AGENT_RESULTS.md`). The `HANDLE_NOT_FOUND` error now offers the near
   id (`details.did_you_mean`). The runtime has no short alias for a handle. The search for a
   near id reads every live handle id, on the error path only.
 - The dataset benchmark ran before the MCP adapter existed. It used the same two tool definitions
   in process. The two-resource task (`benchmarks/AGENT_MCP_RESULTS.md`) ran through the MCP server.
-- The two-resource task is one task with one model, 5 runs.
+- The two-resource task and the v0.3 task are each one task with one model, 5 runs.
 
 Browser:
 
