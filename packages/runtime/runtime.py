@@ -211,8 +211,18 @@ class Runtime:
         recs = [self.registry.get(i) for i in self.registry.live_ids("resource")]
         return [self._view(principal, rec, brief=True) for rec in recs if self._held(principal, rec)]
 
-    def describe(self, principal: str, handle_id: str) -> dict:
-        return self._view(principal, self._resolve(principal, handle_id))
+    def describe(self, principal: str, handle_id: str, detail: str = "full", capability: str | None = None) -> dict:
+        """The protocol Handle. detail "brief": each capability with its name, description, and returns, no schemas.
+        capability: only that capability, in full (its input schema). An agent asks for the brief form first."""
+        rec = self._resolve(principal, handle_id)
+        if detail not in ("full", "brief"):
+            raise HandleError("INVALID_INPUT", f"detail must be full or brief, not {detail!r}")
+        view = self._view(principal, rec)
+        if capability is not None:
+            view["capabilities"] = [self._capability(principal, rec, capability)]
+        elif detail == "brief":
+            view["capabilities"] = [{k: c[k] for k in ("name", "description", "returns")} for c in view["capabilities"]]
+        return view
 
     def observe(self, principal: str, handle_id: str) -> dict:
         rec = self._resolve(principal, handle_id)

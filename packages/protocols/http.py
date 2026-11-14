@@ -24,7 +24,7 @@ METHODS = {
     "handle.create": ("register", ("name", "adapter", "source"), ("worker",)),
     "handle.resolve": ("find", ("name",), ()),
     "handle.list": ("handles", (), ()),
-    "handle.describe": ("describe", ("handle",), ()),
+    "handle.describe": ("describe", ("handle",), ("detail", "capability")),
     "handle.release": ("release", ("handle",), ()),
     "handle.grant": ("grant", ("handle", "to", "capabilities"), ()),
     "handle.revoke": ("revoke", ("handle", "from"), ()),
@@ -129,8 +129,8 @@ class HttpRuntime:
     def handles(self, principal):
         return self._call("handle.list")
 
-    def describe(self, principal, handle_id):
-        return self._call("handle.describe", handle=handle_id)
+    def describe(self, principal, handle_id, detail="full", capability=None):
+        return self._call("handle.describe", handle=handle_id, detail=detail, **({"capability": capability} if capability else {}))
 
     def release(self, principal, handle_id):
         return self._call("handle.release", handle=handle_id)

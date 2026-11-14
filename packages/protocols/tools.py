@@ -11,9 +11,11 @@ from ..sdk import Client
 TOOLS = [
     {"type": "function", "function": {
         "name": "handle_describe",
-        "description": "Describe a handle: what the resource is, its schema, and the capabilities you can invoke on it, with the input schema of each.",
+        "description": "Describe a handle: what the resource is, its schema, and the capabilities you can invoke on it. "
+                       "Give `capability` to get the input schema of that one capability before you invoke it.",
         "parameters": {"type": "object", "required": ["handle"], "properties": {
-            "handle": {"type": "string", "description": "A handle id, for example hdl_01ABC..."}}},
+            "handle": {"type": "string", "description": "A handle id, for example hdl_01ABC..."},
+            "capability": {"type": "string", "description": "Optional. One capability name: the answer is its input schema."}}},
     }},
     {"type": "function", "function": {
         "name": "handle_invoke",
@@ -45,10 +47,13 @@ def dispatch(client: Client, name: str, arguments: dict) -> dict:
     """Run one tool call for the principal of `client`. A failure is a value: {"error": {...}}."""
     try:
         if name == "handle_describe":
-            info = client.resolve(arguments["handle"]).describe()
+            handle = client.resolve(arguments["handle"])
+            if arguments.get("capability"):
+                c = handle.describe(capability=arguments["capability"])["capabilities"][0]
+                return {"capability": c["name"], "description": c["description"], "returns": c["returns"], "input_schema": c["input_schema"]}
+            info = handle.describe(brief=True)
             return {**_summary(info), "description": info["descriptor"].get("description", ""), "capabilities": [
-                {"name": c["name"], "description": c["description"], "returns": c["returns"], "input_schema": c["input_schema"]}
-                for c in info["capabilities"]]}
+                {"name": c["name"], "description": c["description"], "returns": c["returns"]} for c in info["capabilities"]]}
         if name == "handle_invoke":
             result = client.resolve(arguments["handle"]).call(arguments["capability"], arguments.get("input") or {})
             if result["status"] == "failed":

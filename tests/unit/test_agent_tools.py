@@ -14,7 +14,10 @@ def test_a_tool_caller_can_discover_compose_and_recover(tmp_path):
 
     described = dispatch(agent, "handle_describe", {"handle": config.id})
     assert [c["name"] for c in described["capabilities"]] == ["object.get", "object.select"]  # only what the agent holds
-    assert "input_schema" in described["capabilities"][0] and "ana" not in json.dumps(described)
+    assert "input_schema" not in described["capabilities"][0] and "ana" not in json.dumps(described)  # brief: no schemas
+    one = dispatch(agent, "handle_describe", {"handle": config.id, "capability": "object.get"})
+    assert one["capability"] == "object.get" and "path" in one["input_schema"]["properties"]
+    assert dispatch(agent, "handle_describe", {"handle": config.id, "capability": "object.set"})["error"]["code"] == "CAPABILITY_DENIED"
 
     users = dispatch(agent, "handle_invoke", {"handle": config.id, "capability": "object.select", "input": {"path": ["users"]}})
     assert set(users) == {"handle"} and users["handle"]["kind"] == "computation"

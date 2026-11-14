@@ -20,10 +20,15 @@ class Handle:
     def __repr__(self) -> str:
         return f"<Handle {self.id} {self.info['kind']} {self.info['type']}>"
 
-    def describe(self) -> dict:
-        """Return the protocol Handle object: what the resource is and which capabilities this principal holds."""
-        self.info = self._client.runtime.describe(self._client.principal, self.id)
-        return self.info
+    def describe(self, *, brief: bool = False, capability: str | None = None) -> dict:
+        """Return the protocol Handle object: what the resource is and which capabilities this principal holds.
+
+        brief: capabilities without their schemas. capability: only that one capability, with its schema.
+        """
+        info = self._client.runtime.describe(self._client.principal, self.id, "brief" if brief else "full", capability)
+        if not brief and capability is None:
+            self.info = info
+        return info
 
     def discover(self) -> list[str]:
         return [c["name"] for c in self.describe()["capabilities"]]

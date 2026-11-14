@@ -52,7 +52,35 @@
     "capabilities": {
       "type": "array",
       "items": {
-        "$ref": "urn:datahandles:spec:0.2:capabilities.schema.json"
+        "anyOf": [
+          {
+            "$ref": "urn:datahandles:spec:0.2:capabilities.schema.json"
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "description",
+              "returns"
+            ],
+            "description": "The brief form (handle.describe with detail brief): no schemas. Ask for one capability to get its input schema.",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "returns": {
+                "enum": [
+                  "value",
+                  "handle"
+                ]
+              }
+            }
+          }
+        ]
       },
       "description": "The interface of the resource. This list is not an authorization. The runtime checks each operation against its policy."
     },
