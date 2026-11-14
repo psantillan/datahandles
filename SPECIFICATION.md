@@ -136,7 +136,8 @@ Schema: `spec/protocol/graphs.schema.json`.
   6. Resolve and check each `$handle` input.
   7. Check the limit of `execution.mode` against the place of the handle.
   8. Call the adapter, or put the operation in the job queue. If the capability declares
-     `limits.timeout_ms`, the call MUST end at that time (section 18).
+     `limits.timeout_ms`, the runtime MUST answer `OPERATION_TIMEOUT` at that time. The adapter
+     call may continue after the answer (section 18 has how the reference runtime stops it).
   9. Record the operation: principal, target, capability, input, status, duration, bytes, version.
 - An adapter never sees a principal or a grant. An adapter MUST keep each operation inside the
   resource of the handle (for example, a filesystem adapter MUST NOT follow a path or a symlink

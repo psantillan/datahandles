@@ -29,7 +29,7 @@ The README names an older version, 3.3.0, so an answer from the repository alone
 
 - 5 of 5 answers name 3.4.1. Every run used both handles. No tool call failed.
 - 4 of 5 answers also name 3.3.0, each time to say that the README version is older.
-- The peak prompt stays under 4,536 tokens with two handles and up to 15 tool calls.
+- The largest peak prompt is 4,536 tokens, with two handles and 15 tool calls.
 - No code in the server, the runtime, or the tools knows that one handle is a repository and the
   other is a browser. The model learns each from `handle_describe`.
 

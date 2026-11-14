@@ -75,6 +75,8 @@ Transport and workers:
   token and a task signature give identity and integrity. They give no secrecy. Put both behind
   TLS or on a private network.
 - The runtime keeps one HTTP request open to the worker for the full time of an operation.
+- A cancel to a worker is one more HTTP request with no socket timeout. If the worker is not
+  reachable, `job.cancel` waits until the connection fails.
 - A task to a worker is valid for 30 seconds after the signature. This number is assumed, not
   measured. The clocks of the two machines must agree within that time.
 - The registry file holds the key of each worker.
@@ -124,5 +126,6 @@ Browser:
 
 Install:
 
+- The git adapter needs git 2.24 or newer (`--end-of-options`). The tests ran on git 2.43.
 - The JSON Schemas load from `spec/protocol/` in the repository tree. Use a checkout with an
   editable install (`pip install -e .`). A wheel does not carry the schemas.
