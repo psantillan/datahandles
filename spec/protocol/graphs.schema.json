@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:datahandles:spec:0.1:graphs.schema.json",
+  "title": "ComputationGraph",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "nodes",
+    "edges",
+    "execution"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "resource",
+              "operation",
+              "derived",
+              "materialized"
+            ]
+          },
+          "reference": {
+            "type": "string",
+            "pattern": "^hdl_[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "operation": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "capability",
+              "input"
+            ],
+            "description": "The target and each handle input come from the edges, not from this object.",
+            "properties": {
+              "capability": {
+                "type": "string"
+              },
+              "input": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "from",
+          "to"
+        ],
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "input_name": {
+            "type": "string",
+            "description": "Absent: the source node is the target of the operation. Present: the source node fills this input field."
+          }
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy",
+        "consistency"
+      ],
+      "properties": {
+        "strategy": {
+          "enum": [
+            "lazy",
+            "eager",
+            "auto"
+          ]
+        },
+        "consistency": {
+          "enum": [
+            "snapshot",
+            "latest"
+          ]
+        }
+      }
+    }
+  }
+}

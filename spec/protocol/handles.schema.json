@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:datahandles:spec:0.1:handles.schema.json",
+  "title": "Handle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "type",
+    "version",
+    "descriptor",
+    "capabilities",
+    "consistency",
+    "lifecycle"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^hdl_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "kind": {
+      "enum": [
+        "resource",
+        "computation",
+        "result"
+      ],
+      "description": "resource: an external resource. computation: a planned computation that did not run yet. result: the stored output of a computation."
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "version": {
+      "type": "string",
+      "description": "The resource version that this handle is pinned to (snapshot) or last observed (latest). Empty for a computation that did not run yet."
+    },
+    "descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "schema": {}
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "$ref": "urn:datahandles:spec:0.1:capabilities.schema.json"
+      },
+      "description": "The interface of the resource. This list is not an authorization. The runtime checks each operation against its policy."
+    },
+    "consistency": {
+      "enum": [
+        "snapshot",
+        "latest",
+        "continuous"
+      ]
+    },
+    "parents": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^hdl_[0-9A-HJKMNP-TV-Z]{26}$"
+      },
+      "description": "The handles that this handle derives from."
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "created_at",
+        "persistence"
+      ],
+      "properties": {
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "persistence": {
+          "enum": [
+            "ephemeral",
+            "persistent"
+          ]
+        }
+      }
+    }
+  }
+}

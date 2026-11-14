@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:datahandles:spec:0.1:operations.schema.json",
+  "title": "Operation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "target",
+    "capability",
+    "input",
+    "execution"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^op_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "target": {
+      "type": "string",
+      "pattern": "^hdl_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "capability": {
+      "type": "string"
+    },
+    "input": {
+      "type": "object",
+      "description": "A value of the form {\"$handle\": \"hdl_...\"} is a reference to a second input handle."
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "auto",
+            "local",
+            "remote"
+          ]
+        },
+        "strategy": {
+          "enum": [
+            "lazy",
+            "eager",
+            "auto"
+          ],
+          "description": "Applies to capabilities that return a handle. lazy: record the computation, do not run it. eager: run it now and store the output."
+        },
+        "priority": {
+          "type": "integer"
+        },
+        "deadline": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

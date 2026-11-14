@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:datahandles:spec:0.1:capabilities.schema.json",
+  "title": "Capability",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "description",
+    "input_schema",
+    "output_schema",
+    "returns",
+    "effects",
+    "execution"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
+      "description": "<resource type>.<verb>"
+    },
+    "description": {
+      "type": "string"
+    },
+    "input_schema": {
+      "type": "object"
+    },
+    "output_schema": {
+      "type": "object"
+    },
+    "returns": {
+      "enum": [
+        "value",
+        "handle"
+      ],
+      "description": "value: a bounded observation goes to the caller. handle: the operation derives a new handle and no resource data goes to the caller. A capability that returns a value must declare limits.max_output_bytes. The runtime enforces it."
+    },
+    "effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "read",
+        "write",
+        "external"
+      ],
+      "properties": {
+        "read": {
+          "type": "boolean"
+        },
+        "write": {
+          "type": "boolean"
+        },
+        "external": {
+          "type": "boolean"
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "idempotent"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "sync",
+            "async",
+            "stream"
+          ]
+        },
+        "idempotent": {
+          "type": "boolean"
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_output_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_items": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "returns": {
+            "const": "value"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "limits"
+        ],
+        "properties": {
+          "limits": {
+            "required": [
+              "max_output_bytes"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

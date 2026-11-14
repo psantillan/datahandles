@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:datahandles:spec:0.1:errors.schema.json",
+  "title": "Error",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "code",
+    "message",
+    "retryable"
+  ],
+  "properties": {
+    "code": {
+      "enum": [
+        "HANDLE_NOT_FOUND",
+        "HANDLE_RELEASED",
+        "CAPABILITY_NOT_FOUND",
+        "CAPABILITY_DENIED",
+        "INVALID_INPUT",
+        "RESULT_TOO_LARGE",
+        "GRAPH_CYCLE",
+        "ADAPTER_ERROR"
+      ]
+    },
+    "message": {
+      "type": "string"
+    },
+    "retryable": {
+      "type": "boolean",
+      "description": "True when the same operation can succeed later with no change."
+    },
+    "details": {
+      "type": "object",
+      "description": "Machine-readable recovery data, for example the capability names that the caller holds."
+    }
+  }
+}
