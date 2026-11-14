@@ -22,11 +22,11 @@ MUTANTS = [
     ("a principal can grant what it does not hold", RT, "        if missing:\n", "        if False:\n"),
     ("revoke does nothing", RT, "        self.registry.revoke(from_, rec.id)", "        pass"),
     ("discovery lists every capability", RT, "discover(rec.ref) if _allows(held, c[\"name\"])]", "discover(rec.ref)]"),
-    ("no output size check in the runtime", RT, "if size > limit:", "if False:"),
+    ("no output size check in the runtime", RT, "if size > limit:\n                        raise HandleError(\"RESULT_TOO_LARGE\", f\"the output", "if False:\n                        raise HandleError(\"RESULT_TOO_LARGE\", f\"the output"),
     ("no input schema check", RT, "            check_input(cap[\"input_schema\"], operation[\"input\"])\n", ""),
     ("release does not end derived handles", RT, "rec.released_at is not None or any(", "rec.released_at is not None or False and any("),
     ("an adapter fault stops the runtime", RT, "            except Exception as e:  # an adapter fault must not stop the runtime\n                raise HandleError(\"ADAPTER_ERROR\", f\"{type(e).__name__}: {e}\") from e\n", ""),
-    ("submit runs nodes in list order", RT, "for nid in topological_order(graph):", "for nid in [n['id'] for n in graph['nodes'] if topological_order(graph)]:"),
+    ("submit runs nodes in list order", RT, "blocked = {}, {}, {}, set()\n        for nid in topological_order(graph):", "blocked = {}, {}, {}, set()\n        for nid in [n['id'] for n in graph['nodes'] if topological_order(graph)]:"),
     ("ephemeral handles survive a restart", RT, "        self.registry.drop_ephemeral()\n", ""),
     ("no cycle detection", "packages/core/graphs.py", "if len(order) != len(ids):", "if False:"),
     ("no path containment", FS, "if path != root and root not in path.parents:", "if False:"),
@@ -59,7 +59,7 @@ MUTANTS = [
     # v0.2: locks, job threads, cancel, time limits, installed adapters, git, browser
     ("one lock for all resources of an adapter", ADP, "key = None if ref is None else self._adapter.lock_key(ref)", "key = None"),
     ("calls on one resource do not take turns", ADP, "            with self._lock(ref):\n                return attr(*args, **kwargs)", "            return attr(*args, **kwargs)"),
-    ("a hook after the cancel never runs", ADP, "                return\n        hook()", "                return"),
+    ("a hook after the cancel never runs", ADP, "        hook()\n        return lambda: None", "        return lambda: None"),
     ("only one job thread", RT, "while len(self._threads) < self._job_threads:", "while not self._threads:"),
     ("job.cancel does not reach a running call", JOBS, "            self._cancel_running(ref.locator[\"job\"])\n", ""),
     ("no time limit", RT, "timeout_ms = cap.get(\"limits\", {}).get(\"timeout_ms\")", "timeout_ms = None"),
@@ -85,7 +85,7 @@ MUTANTS = [
     ("a memory object shares the value of the caller", "packages/adapters/memory/__init__.py", "[copy.deepcopy(source[\"value\"]), 1]", "[source[\"value\"], 1]"),
     ("a cancel does not interrupt the DuckDB query", DB, "        remove = call.on_cancel(self.db.interrupt)", "        remove = lambda: None"),
     ("a stream event has no size limit", RT, "                if size > limit:\n                    raise HandleError(\"RESULT_TOO_LARGE\", f\"an event", "                if False:\n                    raise HandleError(\"RESULT_TOO_LARGE\", f\"an event"),
-    ("the agent describe gives every schema", "packages/protocols/tools.py", "            info = handle.describe(brief=True)", "            info = handle.describe()"),
+    ("the brief describe gives every schema", RT, "        elif detail == \"brief\":", "        elif False:"),
 ]
 
 

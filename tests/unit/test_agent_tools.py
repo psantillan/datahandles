@@ -32,3 +32,14 @@ def test_a_tool_caller_can_discover_compose_and_recover(tmp_path):
     assert dispatch(agent, "handle_invoke", {"handle": "hdl_" + "0" * 26, "capability": "object.get"})["error"]["code"] == "HANDLE_NOT_FOUND"
     assert dispatch(agent, "handle_invoke", {"handle": 7, "capability": "object.get"})["error"]["code"] == "INVALID_INPUT"
     assert dispatch(agent, "handle_delete", {})["error"]["code"] == "INVALID_INPUT"
+
+
+def test_the_brief_describe_has_no_schemas_and_one_capability_has_its_schema(tmp_path):
+    from datahandles import Client, Runtime
+    from datahandles.core import violations
+    paul = Client(Runtime(tmp_path / "state"), "paul")
+    config = paul.register("config", adapter="memory", source={"value": {"a": 1}})
+    brief = config.describe(brief=True)
+    assert violations("handles", brief) == [] and all(set(c) == {"name", "description", "returns"} for c in brief["capabilities"])
+    one = config.describe(capability="object.get")
+    assert [c["name"] for c in one["capabilities"]] == ["object.get"] and "input_schema" in one["capabilities"][0]
