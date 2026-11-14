@@ -11,17 +11,21 @@ Rules:
 - A redirect is not followed. The answer gives its status and its `location`.
 - `api.fetch` stores only a 2xx response. Each other status is an error with the status in its details.
 - A token never goes into the registry. `token_env` names an environment variable of the process
-  that runs the adapter; its value goes in the header `Authorization: Bearer ...` of each request.
+  that runs the adapter. Its value goes in the header `Authorization: Bearer ...` of each request,
+  or alone in the header that `token_header` names, or in the query parameter that `token_query` names.
+- A key in the query string stays out of each URL that a caller sees: the URL of a stored response,
+  an error message, and the `location` of a redirect.
 - `api.post` is an action (it writes, it reaches outside, it is not idempotent). In a graph it needs
   an approval.
 """
 import json
 import os
+import re
 import socket
 import time
 from http.client import HTTPConnection, HTTPException, HTTPSConnection
 from pathlib import Path
-from urllib.parse import unquote, urlencode, urlsplit
+from urllib.parse import quote, quote_plus, unquote, urlencode, urlsplit
 
 from ...core import DEFAULT_MAX_OUTPUT_BYTES, HandleError, capability, new_id
 from ...runtime.adapter import Derived, ResourceAdapter, ResourceRef, Value
@@ -32,6 +36,8 @@ MAX_RESPONSE_BYTES = 10 * 1024 * 1024
 USER_AGENT = "datahandles (+https://github.com/psantillan/datahandles)"
 # Bytes kept for the JSON keys around a value in a truncated output.
 _ENVELOPE = 512
+_HEADER_NAME = re.compile(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+")  # RFC 9110, a field name
+_OWN_HEADERS = {"host", "user-agent", "accept", "accept-encoding", "content-type", "content-length"}  # the adapter or http.client sets these
 
 _PATH = {"type": "string", "description": "A path under the base URL, for example /v1/forecast."}
 _QUERY = {"type": "object", "description": "Query parameters, for example {\"latitude\": 32.7}.",
@@ -89,8 +95,17 @@ class Adapter(ResourceAdapter):
                 raise HandleError("INVALID_INPUT", f"{name} must be a positive integer")
         if source.get("token_env") and not str(source["token_env"]).isidentifier():
             raise HandleError("INVALID_INPUT", "token_env must be the name of an environment variable")
+        header, param = source.get("token_header"), source.get("token_query")
+        if (header or param) and not source.get("token_env"):
+            raise HandleError("INVALID_INPUT", "token_header and token_query need token_env: it names the variable that holds the key")
+        if header and param:
+            raise HandleError("INVALID_INPUT", "give token_header or token_query, not both")
+        if header and (not isinstance(header, str) or not _HEADER_NAME.fullmatch(header) or header.lower() in _OWN_HEADERS):
+            raise HandleError("INVALID_INPUT", "token_header must be the name of a header that the adapter does not set itself, for example X-API-Key")
+        if param and not isinstance(param, str):
+            raise HandleError("INVALID_INPUT", "token_query must be the name of a query parameter, for example api_key")
         locator = {"base_url": f"{base.scheme}://{base.netloc}{base.path.rstrip('/')}", "token_env": source.get("token_env"),
-                   "timeout_ms": timeout_ms, "max_response_bytes": limit}
+                   "token_header": header or None, "token_query": param or None, "timeout_ms": timeout_ms, "max_response_bytes": limit}
         return ResourceRef("api", locator, "")
 
     def _url(self, ref: ResourceRef, path: str, query: dict | None) -> tuple:
@@ -109,11 +124,24 @@ class Adapter(ResourceAdapter):
     def _request(self, ref: ResourceRef, method: str, path: str, query=None, body=None, call=None) -> dict:
         base, target = self._url(ref, path, query)
         headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+        wire, secret = target, None  # `wire` is the target that goes to the service; only it can hold a key
         if ref.locator["token_env"]:
             token = os.environ.get(ref.locator["token_env"])
             if not token:
                 raise HandleError("INVALID_INPUT", f"the environment variable {ref.locator['token_env']} is not set in the process that runs the adapter")
-            headers["Authorization"] = f"Bearer {token}"
+            if not (token.isascii() and token.isprintable()):  # http.client would put the value in its error message
+                raise HandleError("INVALID_INPUT", f"the value of the environment variable {ref.locator['token_env']} has a character that "
+                                  "cannot go in a request, for example a line end")
+            # A registration made before these two keys existed has neither of them.
+            header, param = ref.locator.get("token_header"), ref.locator.get("token_query")
+            if param:
+                if param in (query or {}):
+                    raise HandleError("INVALID_INPUT", f"the query parameter {param!r} holds the key of this API: a caller cannot set it")
+                wire, secret = target + ("&" if "?" in target else "?") + urlencode({param: token}), token
+            elif header:
+                headers[header] = token
+            else:
+                headers["Authorization"] = f"Bearer {token}"
         data = None
         if body is not None:
             data, headers["Content-Type"] = json.dumps(body).encode(), "application/json"
@@ -134,7 +162,7 @@ class Adapter(ResourceAdapter):
             conn.connect()
             if call is not None:
                 call.check()  # a cancel came during the connect: send nothing
-            conn.request(method, target, data, headers)
+            conn.request(method, wire, data, headers)
             reply = conn.getresponse()
             raw = reply.read(limit + 1)
             if len(raw) > limit:
@@ -143,6 +171,9 @@ class Adapter(ResourceAdapter):
                       "bytes": len(raw), "body": raw}
             if 300 <= reply.status < 400:
                 result["location"] = reply.getheader("Location")
+                if secret and result["location"]:  # a redirect often repeats the query string
+                    for form in {secret, quote(secret, safe=""), quote_plus(secret)}:
+                        result["location"] = result["location"].replace(form, "***")
             return result
         except (OSError, HTTPException) as e:
             if call is not None:

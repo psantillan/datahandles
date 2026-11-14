@@ -81,6 +81,13 @@ Steps 1 to 3 change only the runtime and the graph schema. Step 7 changes the pr
 | A generic HTTP JSON API adapter (`api`): live `api.get`, stored responses that never change (`api.fetch`, `response.*`), `api.post` as an action | `tests/unit/test_api_adapter.py` against a local service; `examples/public_apis.py` against Open-Meteo, USGS, and GitHub |
 | The MCP server registers an API from one string (`--register weather=api:https://api.open-meteo.com/v1`) | same file: a source given as one string is the base URL |
 
+## After v0.3.1 (built, not released)
+
+| Item | Evidence |
+|---|---|
+| An API key in a named header (`token_header`) or in a query parameter (`token_query`) | `tests/unit/test_api_adapter.py`; `examples/public_apis.py` against the NASA API with its public demo key |
+| A token value that cannot go in a request gives an error without the value | same file. Before, the error message of the Python HTTP library carried the value to the caller. |
+
 ## v0.4 and later
 
 - Worker discovery, heartbeats, leases, and scheduling between workers. One handle is on one worker.
@@ -160,7 +167,8 @@ Agents:
 APIs:
 
 - The api adapter does GET and POST only. It has no PUT, PATCH, or DELETE.
-- The only credential is a bearer token. There is no custom header and no key in the query string.
+- A credential is one fixed value from an environment variable, in one header or one query
+  parameter. There is no OAuth flow, no token refresh, and no request signing.
 - An api handle with no `timeout_ms` has no time limit. A request waits as long as the service
   keeps the connection open, or until a cancel.
 - Requests to one API run one at a time (one lock for each base URL).
@@ -168,6 +176,7 @@ APIs:
 - A stored response keeps JSON, or text read as UTF-8. A binary body is not kept exactly.
 - The largest stored response is 10 MiB by default. This number is assumed, not measured.
 - The tests use a local service. Only `examples/public_apis.py` calls real APIs, and CI does not run it.
+  The NASA demo key has a low rate limit: its `X-RateLimit-Limit` header gave 10 on 2026-11-14.
 
 Browser:
 

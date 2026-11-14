@@ -17,6 +17,7 @@ class Service:
 
     def __init__(self):
         self.items, self.release, self.auth = [{"id": 1, "name": "lamp"}, {"id": 2, "name": "desk"}], threading.Event(), []
+        self.seen = []  # the target and the X-API-Key header of each GET
         service = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -32,6 +33,7 @@ class Service:
 
             def do_GET(self):
                 service.auth.append(self.headers.get("Authorization"))
+                service.seen.append((self.path, self.headers.get("X-API-Key")))
                 path, _, query = self.path.partition("?")
                 if path == "/v1/items":
                     return self.reply(200, {"items": service.items, "query": query})
@@ -42,6 +44,8 @@ class Service:
                     return self.reply(200, {"late": True})
                 if path == "/v1/moved":
                     return self.reply(302, {}, [("Location", "http://elsewhere.example/v1/items")])
+                if path == "/v1/old":  # a redirect that repeats the query string
+                    return self.reply(301, {}, [("Location", f"{service.url}/new?{query}")])
                 if path == "/v1/plain":
                     return self.reply(200, b"just text")
                 self.reply(404, {"error": "no such path"})
@@ -137,6 +141,46 @@ def test_a_token_comes_from_the_environment_and_never_goes_into_the_registry(tmp
     with pytest.raises(HandleError) as e:
         api.invoke("api.get", {"path": "/items"})
     assert e.value.code == "INVALID_INPUT"
+
+
+def test_a_key_goes_in_a_named_header_or_in_a_query_parameter(tmp_path, service, monkeypatch):
+    monkeypatch.setenv("SHOP_KEY", "key/456+z")
+    paul = Client(Runtime(tmp_path / "state"), "paul")
+    by_header = paul.register("a", adapter="api", source={"base_url": service.url, "token_env": "SHOP_KEY", "token_header": "X-API-Key"})
+    by_header.invoke("api.get", {"path": "/items"})
+    assert service.seen[-1] == ("/v1/items", "key/456+z") and service.auth[-1] is None
+    by_query = paul.register("b", adapter="api", source={"base_url": service.url, "token_env": "SHOP_KEY", "token_query": "api_key"})
+    stored = by_query.invoke("api.fetch", {"path": "/plain", "query": {"limit": 2}})
+    assert service.seen[-1] == ("/v1/plain?limit=2&api_key=key%2F456%2Bz", None) and service.auth[-1] is None
+    # The key stays out of each URL that the caller sees.
+    assert stored.invoke("response.status")["url"] == f"{service.url}/plain?limit=2"
+    assert by_query.invoke("api.get", {"path": "/old"})["location"] == f"{service.url}/new?api_key=***"
+    with pytest.raises(HandleError) as e:
+        by_query.invoke("api.fetch", {"path": "/missing"})
+    assert e.value.details["status"] == 404 and "456" not in str(e.value)
+    requests = len(service.seen)
+    with pytest.raises(HandleError) as e:
+        by_query.invoke("api.get", {"path": "/items", "query": {"api_key": "mine"}})
+    assert e.value.code == "INVALID_INPUT" and len(service.seen) == requests  # a caller cannot set the key parameter
+    assert b"key/456" not in (tmp_path / "state" / "registry.sqlite").read_bytes()
+
+
+@pytest.mark.parametrize("source", [{"token_header": "X-API-Key"}, {"token_env": "K", "token_header": "X-API-Key", "token_query": "key"},
+                                    {"token_env": "K", "token_header": "X API Key"}, {"token_env": "K", "token_header": "Content-Type"},
+                                    {"token_env": "K", "token_query": 5}])
+def test_a_registration_names_one_valid_place_for_the_key(paul, service, source):
+    with pytest.raises(HandleError) as e:
+        paul.register("shop", adapter="api", source={"base_url": service.url, **source})
+    assert e.value.code == "INVALID_INPUT"
+
+
+@pytest.mark.parametrize("place", [{}, {"token_header": "X-API-Key"}, {"token_query": "api_key"}])
+def test_a_token_value_that_cannot_go_in_a_request_stays_out_of_the_error(tmp_path, service, monkeypatch, place):
+    monkeypatch.setenv("SHOP_KEY", "secret-abc\r")  # for example from a file with Windows line ends
+    paul = Client(Runtime(tmp_path / "state"), "paul")
+    api = paul.register("shop", adapter="api", source={"base_url": service.url, "token_env": "SHOP_KEY", **place})
+    error = api.call("api.get", {"path": "/items"})["error"]
+    assert error["code"] == "INVALID_INPUT" and "secret-abc" not in json.dumps(error) and service.seen == []
 
 
 def test_a_time_limit_stops_a_slow_request(paul, service):

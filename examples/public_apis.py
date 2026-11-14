@@ -1,11 +1,14 @@
-"""Pull three public APIs through handles: Open-Meteo (weather), USGS (earthquakes), and GitHub.
+"""Pull four public APIs through handles: Open-Meteo (weather), USGS (earthquakes), GitHub, and NASA.
 
-None of them needs a key. Each API is one handle with a fixed base URL. A live answer comes from
+The first three need no key. NASA needs one: the adapter reads it from the environment variable
+NASA_API_KEY and sends it in a header. Without that variable, this example uses the demo key that
+NASA publishes. Each API is one handle with a fixed base URL. A live answer comes from
 api.get. api.fetch stores a response as a handle that never changes, and a caller reads it in
 parts, so a 30 KB earthquake feed never goes to the caller as a whole.
 
 Run: .venv/bin/python examples/public_apis.py
 """
+import os
 import tempfile
 
 from datahandles import connect
@@ -35,6 +38,17 @@ def main() -> None:
     print("GitHub: psantillan/datahandles has", repo.invoke("response.get", {"path": ["stargazers_count"]}), "stars,",
           repo.invoke("response.get", {"path": ["open_issues_count"]}), "open issues, default branch",
           repo.invoke("response.get", {"path": ["default_branch"]}))
+
+    # An API with a key. The key stays in this process: no handle, registry row, or answer holds it.
+    os.environ.setdefault("NASA_API_KEY", "DEMO_KEY")
+    nasa = client.register("nasa", adapter="api", source={"base_url": "https://api.nasa.gov", "timeout_ms": 20000,
+                                                          "token_env": "NASA_API_KEY", "token_header": "X-Api-Key"})
+    day = nasa.invoke("api.get", {"path": "/neo/rest/v1/feed", "query": {"start_date": "2024-01-01", "end_date": "2024-01-01"}})
+    if day["status"] == 200:
+        print(f"NASA: {day['json']['element_count']} asteroids passed near Earth on 2024-01-01, for example",
+              day["json"]["near_earth_objects"]["2024-01-01"][0]["name"])
+    else:
+        print("NASA: status", day["status"], "(the demo key has a low rate limit; set NASA_API_KEY to your own key)")
 
     # A graph over the stored feed replays: the second run reuses each node.
     graph = {"id": "g", "execution": {"strategy": "lazy", "consistency": "latest"},
