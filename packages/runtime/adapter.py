@@ -51,13 +51,23 @@ class Call:
     def cancelled(self) -> bool:
         return self.reason is not None
 
-    def on_cancel(self, hook) -> None:
-        """Run `hook()` at the cancel. If the call is cancelled already, run it now."""
+    def on_cancel(self, hook):
+        """Run `hook()` at the cancel. If the call is cancelled already, run it now.
+
+        Return a function that removes the hook. An adapter whose hook acts on something shared (one
+        database connection) removes it when its work ends, so a later cancel cannot reach other work.
+        """
         with self._lock:
             if self.reason is None:
                 self._hooks.append(hook)
-                return
+                return lambda: self._remove(hook)
         hook()
+        return lambda: None
+
+    def _remove(self, hook) -> None:
+        with self._lock:
+            if hook in self._hooks:
+                self._hooks.remove(hook)
 
     def cancel(self, reason: str) -> None:
         with self._lock:

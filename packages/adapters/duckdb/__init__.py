@@ -166,6 +166,17 @@ class Adapter(ResourceAdapter):
         return have
 
     def invoke(self, ref: ResourceRef, capability: str, input: dict, *, eager: bool, call) -> Value | Derived:
+        # A cancel interrupts the query that runs now. The adapter lock lets only this call use the connection.
+        remove = call.on_cancel(self.db.interrupt)
+        try:
+            return self._invoke(ref, capability, input, eager)
+        except duckdb.Error:
+            call.check()  # an interrupted query becomes JOB_CANCELLED or OPERATION_TIMEOUT
+            raise
+        finally:
+            remove()
+
+    def _invoke(self, ref: ResourceRef, capability: str, input: dict, eager: bool) -> Value | Derived:
         plan, verb = ref.locator["plan"], capability.split(".")[1]
         if verb == "schema":
             return Value({"columns": self._columns(plan)}, self._version(plan))
