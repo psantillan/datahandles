@@ -40,3 +40,8 @@ covers it and the mutation check passes.
   in it is edited.
 - `dataset.join` needs both handles on the DuckDB adapter. There is no cross-adapter join.
 - The default size limit of one value output is 65,536 bytes. This number is assumed, not measured.
+- A `handle_describe` result for a dataset costs a 9B model about 1,230 prompt tokens, because it
+  carries the full input schema of nine capabilities. A brief form (names and one line each, the
+  schema of one capability on request) is not built.
+- A handle id is 26 opaque characters. In one of 12 agent runs the model dropped a character when
+  it copied an id (`benchmarks/AGENT_RESULTS.md`). The runtime has no short alias for a handle.

@@ -1,0 +1,305 @@
+{
+  "date": "2026-11-14",
+  "model": "ornith-1.5:9b",
+  "num_ctx": 8192,
+  "duckdb": "2.0.0",
+  "python": "3.12.3",
+  "tokens_per_row_as_json": 35.36666666666667,
+  "runs": [
+    {
+      "question": "count",
+      "operations": 1,
+      "rows": 10000,
+      "parquet_bytes": 136534,
+      "expected": [
+        10000
+      ],
+      "correct": true,
+      "answer": "The events dataset has 10,000 rows.",
+      "peak_prompt_tokens": 1988,
+      "prompt_tokens_by_turn": [
+        653,
+        1886,
+        1988
+      ],
+      "tool_calls": 2,
+      "tool_errors": 0,
+      "tool_result_bytes": 4029,
+      "seconds": 7.4
+    },
+    {
+      "question": "filter",
+      "operations": 2,
+      "rows": 10000,
+      "parquet_bytes": 136534,
+      "expected": [
+        3270
+      ],
+      "correct": true,
+      "answer": "There are **3,270** events with the event_type 'purchase'.",
+      "peak_prompt_tokens": 2202,
+      "prompt_tokens_by_turn": [
+        654,
+        1887,
+        2101,
+        2202
+      ],
+      "tool_calls": 3,
+      "tool_errors": 0,
+      "tool_result_bytes": 4305,
+      "seconds": 10.2
+    },
+    {
+      "question": "group",
+      "operations": 4,
+      "rows": 10000,
+      "parquet_bytes": 136534,
+      "expected": [
+        "click"
+      ],
+      "correct": true,
+      "answer": "The event_type with the largest total amount is **click** (total amount \u2248 343,209.80).",
+      "peak_prompt_tokens": 3827,
+      "prompt_tokens_by_turn": [
+        658,
+        3104,
+        3321,
+        3516,
+        3687,
+        3827
+      ],
+      "tool_calls": 6,
+      "tool_errors": 0,
+      "tool_result_bytes": 8663,
+      "seconds": 21.6
+    },
+    {
+      "question": "join",
+      "operations": 5,
+      "rows": 10000,
+      "parquet_bytes": 136534,
+      "expected": [
+        "MX",
+        "JP",
+        "CA"
+      ],
+      "correct": true,
+      "answer": "The 3 countries with the most revenue from 'purchase' events, largest first, are:\n\n1. **MX** (Mexico) \u2014 $49,357.86\n2. **JP** (Japan) \u2014 $47,881.95\n3. **CA** (Canada) \u2014 $47,113.75",
+      "peak_prompt_tokens": 4802,
+      "prompt_tokens_by_turn": [
+        686,
+        3129,
+        3553,
+        3832,
+        4042,
+        4221,
+        4392,
+        4577,
+        4802
+      ],
+      "tool_calls": 10,
+      "tool_errors": 0,
+      "tool_result_bytes": 9685,
+      "seconds": 41.1
+    },
+    {
+      "question": "count",
+      "operations": 1,
+      "rows": 1000000,
+      "parquet_bytes": 11690703,
+      "expected": [
+        1000000
+      ],
+      "correct": true,
+      "answer": "The events dataset has 1,000,000 rows.",
+      "peak_prompt_tokens": 1998,
+      "prompt_tokens_by_turn": [
+        655,
+        1892,
+        1998
+      ],
+      "tool_calls": 2,
+      "tool_errors": 0,
+      "tool_result_bytes": 4031,
+      "seconds": 8.3
+    },
+    {
+      "question": "filter",
+      "operations": 2,
+      "rows": 1000000,
+      "parquet_bytes": 11690703,
+      "expected": [
+        332867
+      ],
+      "correct": true,
+      "answer": "There are **332,867** events with the event_type 'purchase'.",
+      "peak_prompt_tokens": 2212,
+      "prompt_tokens_by_turn": [
+        656,
+        1893,
+        2109,
+        2212
+      ],
+      "tool_calls": 3,
+      "tool_errors": 0,
+      "tool_result_bytes": 4307,
+      "seconds": 10.5
+    },
+    {
+      "question": "group",
+      "operations": 4,
+      "rows": 1000000,
+      "parquet_bytes": 11690703,
+      "expected": [
+        "click"
+      ],
+      "correct": true,
+      "answer": "The aggregated results show the total amounts by event_type:\n- click: 33,483,852.07\n- purchase: 33,310,253.60\n- view: 33,283,648.67\n\nThe event_type with the largest total amount is **click**.",
+      "peak_prompt_tokens": 3924,
+      "prompt_tokens_by_turn": [
+        660,
+        3110,
+        3338,
+        3534,
+        3725,
+        3924
+      ],
+      "tool_calls": 6,
+      "tool_errors": 0,
+      "tool_result_bytes": 8724,
+      "seconds": 25.7
+    },
+    {
+      "question": "join",
+      "operations": 5,
+      "rows": 1000000,
+      "parquet_bytes": 11690703,
+      "expected": [
+        "BR",
+        "US",
+        "MX"
+      ],
+      "correct": true,
+      "answer": "The 3 countries with the most revenue from 'purchase' events are:\n\n- **BR** (Brazil): 4,803,731.77\n- **US** (United States): 4,782,002.70\n- **MX** (Mexico): 4,776,612.67\n\nThe 3 country codes, largest first, are **BR, US, MX**.",
+      "peak_prompt_tokens": 5015,
+      "prompt_tokens_by_turn": [
+        688,
+        3135,
+        3545,
+        3820,
+        4034,
+        4231,
+        4400,
+        4537,
+        4674,
+        4819,
+        5015
+      ],
+      "tool_calls": 12,
+      "tool_errors": 3,
+      "tool_result_bytes": 9840,
+      "seconds": 45.7
+    },
+    {
+      "question": "count",
+      "operations": 1,
+      "rows": 100000000,
+      "parquet_bytes": 1165998636,
+      "expected": [
+        100000000
+      ],
+      "correct": true,
+      "answer": "The events dataset has **100,000,000** rows (100 million).",
+      "peak_prompt_tokens": 2030,
+      "prompt_tokens_by_turn": [
+        653,
+        1907,
+        2030
+      ],
+      "tool_calls": 2,
+      "tool_errors": 0,
+      "tool_result_bytes": 4033,
+      "seconds": 9.9
+    },
+    {
+      "question": "filter",
+      "operations": 2,
+      "rows": 100000000,
+      "parquet_bytes": 1165998636,
+      "expected": [
+        33329428
+      ],
+      "correct": true,
+      "answer": "There are **33,329,428** events with the event_type 'purchase'.",
+      "peak_prompt_tokens": 2240,
+      "prompt_tokens_by_turn": [
+        654,
+        1907,
+        2136,
+        2240
+      ],
+      "tool_calls": 3,
+      "tool_errors": 0,
+      "tool_result_bytes": 4309,
+      "seconds": 11.8
+    },
+    {
+      "question": "group",
+      "operations": 4,
+      "rows": 100000000,
+      "parquet_bytes": 1165998636,
+      "expected": [
+        "click"
+      ],
+      "correct": true,
+      "answer": "The event_type with the largest total amount is **click**, with a total of approximately 3,333,812,673.67.\n\nFor reference:\n- click: 3,333,812,673.67\n- purchase: 3,333,545,499.14\n- view: 3,332,989,799.92",
+      "peak_prompt_tokens": 2862,
+      "prompt_tokens_by_turn": [
+        658,
+        966,
+        1226,
+        1404,
+        1607,
+        1786,
+        1982,
+        2153,
+        2325,
+        2503,
+        2675,
+        2862
+      ],
+      "tool_calls": 13,
+      "tool_errors": 9,
+      "tool_result_bytes": 3262,
+      "seconds": 42.1
+    },
+    {
+      "question": "join",
+      "operations": 5,
+      "rows": 100000000,
+      "parquet_bytes": 1165998636,
+      "expected": [
+        "BR",
+        "MX",
+        "US"
+      ],
+      "correct": true,
+      "answer": "The 3 countries with the most revenue from 'purchase' events, largest first, are:\n\n1. **BR** (Brazil) \u2014 480,478,088.80\n2. **MX** (Mexico) \u2014 477,718,993.21\n3. **US** (United States) \u2014 477,524,682.50\n\nThe 3 country codes are **BR, MX, US**.",
+      "peak_prompt_tokens": 4569,
+      "prompt_tokens_by_turn": [
+        686,
+        3129,
+        3548,
+        3825,
+        4038,
+        4220,
+        4388,
+        4569
+      ],
+      "tool_calls": 9,
+      "tool_errors": 0,
+      "tool_result_bytes": 9466,
+      "seconds": 37.9
+    }
+  ]
+}

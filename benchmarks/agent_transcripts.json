@@ -1,0 +1,1976 @@
+{
+ "count_10000": [
+  {
+   "role": "system",
+   "content": "You answer questions about data that you cannot see directly. You have handles: references to resources.\nUse handle_describe to learn what a handle is and what its capabilities need as input.\nUse handle_invoke to run a capability. Some capabilities return a new handle. Use that new handle id in your next call.\nTo pass a handle as an input value, write {\"$handle\": \"<handle id>\"}.\nWhen you have the answer, reply with the answer in one short sentence. Give numbers as plain digits.\n\nThe id of the events handle is hdl_01M7DA5GEQNH5YC4ZZT3CT8D0V\nThe id of the customers handle is hdl_01M7DA5GDXZ59KQKP6ZHFC45GP"
+  },
+  {
+   "role": "user",
+   "content": "How many rows does the events dataset have?"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "E4RLtZAVjaZExDlG4CY8MCfiMnWfij7e",
+     "function": {
+      "index": 0,
+      "name": "handle_describe",
+      "arguments": {
+       "handle": "hdl_01M7DA5GEQNH5YC4ZZT3CT8D0V"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_describe",
+   "content": "{\"id\": \"hdl_01M7DA5GEQNH5YC4ZZT3CT8D0V\", \"kind\": \"resource\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}]}, \"description\": \"A table of rows and columns.\", \"capabilities\": [{\"name\": \"dataset.schema\", \"description\": \"Return the column names and types.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.count\", \"description\": \"Return the number of rows.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.head\", \"description\": \"Return the first rows. The output stops at `n` rows or at the size limit and says so.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1, \"default\": 10}}}}, {\"name\": \"dataset.filter\", \"description\": \"Derive a handle to the rows that pass every predicate.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"where\"], \"properties\": {\"where\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\", \"op\", \"value\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"op\": {\"enum\": [\"eq\", \"ne\", \"lt\", \"le\", \"gt\", \"ge\", \"in\"]}, \"value\": {\"anyOf\": [{\"type\": [\"string\", \"number\", \"boolean\"]}, {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": [\"string\", \"number\", \"boolean\"]}}]}}}}}}}, {\"name\": \"dataset.select\", \"description\": \"Derive a handle to a subset of the columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"columns\"], \"properties\": {\"columns\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"string\", \"minLength\": 1}}}}}, {\"name\": \"dataset.aggregate\", \"description\": \"Derive a handle to one row for each group, with the metrics as columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"metrics\"], \"properties\": {\"group_by\": {\"type\": \"array\", \"items\": {\"type\": \"string\", \"minLength\": 1}}, \"metrics\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"fn\", \"as\"], \"properties\": {\"fn\": {\"enum\": [\"count\", \"count_distinct\", \"sum\", \"avg\", \"min\", \"max\"]}, \"column\": {\"type\": \"string\", \"minLength\": 1}, \"as\": {\"type\": \"string\", \"minLength\": 1}}}}}}}, {\"name\": \"dataset.sort\", \"description\": \"Derive a handle to the rows in a given order.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"by\"], \"properties\": {\"by\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"descending\": {\"type\": \"boolean\", \"default\": false}}}}}}}, {\"name\": \"dataset.limit\", \"description\": \"Derive a handle to the first `n` rows.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"n\"], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1}}}}, {\"name\": \"dataset.join\", \"description\": \"Derive a handle to the join of this dataset (left) with a second dataset handle (right).\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"right\", \"on\"], \"properties\": {\"right\": {\"type\": \"object\", \"required\": [\"$handle\"], \"additionalProperties\": false, \"properties\": {\"$handle\": {\"type\": \"string\"}}}, \"on\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"left\", \"right\"], \"properties\": {\"left\": {\"type\": \"string\", \"minLength\": 1}, \"right\": {\"type\": \"string\", \"minLength\": 1}}}}, \"how\": {\"enum\": [\"inner\", \"left\"], \"default\": \"inner\"}}}}]}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "XB9AvCRAMMLCtskNOuctwuC7r9bQPI1n",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA5GEQNH5YC4ZZT3CT8D0V",
+       "capability": "dataset.count",
+       "input": {}
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"output\": {\"rows\": 10000}}"
+  },
+  {
+   "role": "assistant",
+   "content": "The events dataset has 10,000 rows."
+  }
+ ],
+ "filter_10000": [
+  {
+   "role": "system",
+   "content": "You answer questions about data that you cannot see directly. You have handles: references to resources.\nUse handle_describe to learn what a handle is and what its capabilities need as input.\nUse handle_invoke to run a capability. Some capabilities return a new handle. Use that new handle id in your next call.\nTo pass a handle as an input value, write {\"$handle\": \"<handle id>\"}.\nWhen you have the answer, reply with the answer in one short sentence. Give numbers as plain digits.\n\nThe id of the events handle is hdl_01M7DA5GEQNH5YC4ZZT3CT8D0V\nThe id of the customers handle is hdl_01M7DA5GDXZ59KQKP6ZHFC45GP"
+  },
+  {
+   "role": "user",
+   "content": "How many events have the event_type 'purchase'?"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "h0dsWPKLBq9JdqiaPJ4AYVwmMhC1zu5x",
+     "function": {
+      "index": 0,
+      "name": "handle_describe",
+      "arguments": {
+       "handle": "hdl_01M7DA5GEQNH5YC4ZZT3CT8D0V"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_describe",
+   "content": "{\"id\": \"hdl_01M7DA5GEQNH5YC4ZZT3CT8D0V\", \"kind\": \"resource\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}]}, \"description\": \"A table of rows and columns.\", \"capabilities\": [{\"name\": \"dataset.schema\", \"description\": \"Return the column names and types.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.count\", \"description\": \"Return the number of rows.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.head\", \"description\": \"Return the first rows. The output stops at `n` rows or at the size limit and says so.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1, \"default\": 10}}}}, {\"name\": \"dataset.filter\", \"description\": \"Derive a handle to the rows that pass every predicate.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"where\"], \"properties\": {\"where\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\", \"op\", \"value\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"op\": {\"enum\": [\"eq\", \"ne\", \"lt\", \"le\", \"gt\", \"ge\", \"in\"]}, \"value\": {\"anyOf\": [{\"type\": [\"string\", \"number\", \"boolean\"]}, {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": [\"string\", \"number\", \"boolean\"]}}]}}}}}}}, {\"name\": \"dataset.select\", \"description\": \"Derive a handle to a subset of the columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"columns\"], \"properties\": {\"columns\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"string\", \"minLength\": 1}}}}}, {\"name\": \"dataset.aggregate\", \"description\": \"Derive a handle to one row for each group, with the metrics as columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"metrics\"], \"properties\": {\"group_by\": {\"type\": \"array\", \"items\": {\"type\": \"string\", \"minLength\": 1}}, \"metrics\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"fn\", \"as\"], \"properties\": {\"fn\": {\"enum\": [\"count\", \"count_distinct\", \"sum\", \"avg\", \"min\", \"max\"]}, \"column\": {\"type\": \"string\", \"minLength\": 1}, \"as\": {\"type\": \"string\", \"minLength\": 1}}}}}}}, {\"name\": \"dataset.sort\", \"description\": \"Derive a handle to the rows in a given order.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"by\"], \"properties\": {\"by\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"descending\": {\"type\": \"boolean\", \"default\": false}}}}}}}, {\"name\": \"dataset.limit\", \"description\": \"Derive a handle to the first `n` rows.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"n\"], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1}}}}, {\"name\": \"dataset.join\", \"description\": \"Derive a handle to the join of this dataset (left) with a second dataset handle (right).\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"right\", \"on\"], \"properties\": {\"right\": {\"type\": \"object\", \"required\": [\"$handle\"], \"additionalProperties\": false, \"properties\": {\"$handle\": {\"type\": \"string\"}}}, \"on\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"left\", \"right\"], \"properties\": {\"left\": {\"type\": \"string\", \"minLength\": 1}, \"right\": {\"type\": \"string\", \"minLength\": 1}}}}, \"how\": {\"enum\": [\"inner\", \"left\"], \"default\": \"inner\"}}}}]}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "woOvPxpqyT4e3yc6yOtrrsblItRZwd0v",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA5GEQNH5YC4ZZT3CT8D0V",
+       "capability": "dataset.filter",
+       "input": {
+        "where": [
+         {
+          "column": "event_type",
+          "op": "eq",
+          "value": "purchase"
+         }
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DA647XD44TXRM4GB356AKA\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "GCTq4g8xCy5o3whJwIfFMeiJjtkH6IZr",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA647XD44TXRM4GB356AKA",
+       "capability": "dataset.count",
+       "input": {}
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"output\": {\"rows\": 3270}}"
+  },
+  {
+   "role": "assistant",
+   "content": "There are **3,270** events with the event_type 'purchase'."
+  }
+ ],
+ "group_10000": [
+  {
+   "role": "system",
+   "content": "You answer questions about data that you cannot see directly. You have handles: references to resources.\nUse handle_describe to learn what a handle is and what its capabilities need as input.\nUse handle_invoke to run a capability. Some capabilities return a new handle. Use that new handle id in your next call.\nTo pass a handle as an input value, write {\"$handle\": \"<handle id>\"}.\nWhen you have the answer, reply with the answer in one short sentence. Give numbers as plain digits.\n\nThe id of the events handle is hdl_01M7DA5GEQNH5YC4ZZT3CT8D0V\nThe id of the customers handle is hdl_01M7DA5GDXZ59KQKP6ZHFC45GP"
+  },
+  {
+   "role": "user",
+   "content": "Which event_type has the largest total amount? Give the event_type."
+  },
+  {
+   "role": "assistant",
+   "content": "I'll analyze the events data to find which event_type has the largest total amount.\n\n",
+   "tool_calls": [
+    {
+     "id": "DNIoDZ0EIPqT3QPSQwU0NBMqLIyBtTsL",
+     "function": {
+      "index": 0,
+      "name": "handle_describe",
+      "arguments": {
+       "handle": "hdl_01M7DA5GEQNH5YC4ZZT3CT8D0V"
+      }
+     }
+    },
+    {
+     "id": "YaA5lC4gLB03zxgklHSUS1rzcUi2X1dm",
+     "function": {
+      "index": 1,
+      "name": "handle_describe",
+      "arguments": {
+       "handle": "hdl_01M7DA5GDXZ59KQKP6ZHFC45GP"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_describe",
+   "content": "{\"id\": \"hdl_01M7DA5GEQNH5YC4ZZT3CT8D0V\", \"kind\": \"resource\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}]}, \"description\": \"A table of rows and columns.\", \"capabilities\": [{\"name\": \"dataset.schema\", \"description\": \"Return the column names and types.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.count\", \"description\": \"Return the number of rows.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.head\", \"description\": \"Return the first rows. The output stops at `n` rows or at the size limit and says so.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1, \"default\": 10}}}}, {\"name\": \"dataset.filter\", \"description\": \"Derive a handle to the rows that pass every predicate.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"where\"], \"properties\": {\"where\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\", \"op\", \"value\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"op\": {\"enum\": [\"eq\", \"ne\", \"lt\", \"le\", \"gt\", \"ge\", \"in\"]}, \"value\": {\"anyOf\": [{\"type\": [\"string\", \"number\", \"boolean\"]}, {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": [\"string\", \"number\", \"boolean\"]}}]}}}}}}}, {\"name\": \"dataset.select\", \"description\": \"Derive a handle to a subset of the columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"columns\"], \"properties\": {\"columns\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"string\", \"minLength\": 1}}}}}, {\"name\": \"dataset.aggregate\", \"description\": \"Derive a handle to one row for each group, with the metrics as columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"metrics\"], \"properties\": {\"group_by\": {\"type\": \"array\", \"items\": {\"type\": \"string\", \"minLength\": 1}}, \"metrics\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"fn\", \"as\"], \"properties\": {\"fn\": {\"enum\": [\"count\", \"count_distinct\", \"sum\", \"avg\", \"min\", \"max\"]}, \"column\": {\"type\": \"string\", \"minLength\": 1}, \"as\": {\"type\": \"string\", \"minLength\": 1}}}}}}}, {\"name\": \"dataset.sort\", \"description\": \"Derive a handle to the rows in a given order.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"by\"], \"properties\": {\"by\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"descending\": {\"type\": \"boolean\", \"default\": false}}}}}}}, {\"name\": \"dataset.limit\", \"description\": \"Derive a handle to the first `n` rows.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"n\"], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1}}}}, {\"name\": \"dataset.join\", \"description\": \"Derive a handle to the join of this dataset (left) with a second dataset handle (right).\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"right\", \"on\"], \"properties\": {\"right\": {\"type\": \"object\", \"required\": [\"$handle\"], \"additionalProperties\": false, \"properties\": {\"$handle\": {\"type\": \"string\"}}}, \"on\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"left\", \"right\"], \"properties\": {\"left\": {\"type\": \"string\", \"minLength\": 1}, \"right\": {\"type\": \"string\", \"minLength\": 1}}}}, \"how\": {\"enum\": [\"inner\", \"left\"], \"default\": \"inner\"}}}}]}"
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_describe",
+   "content": "{\"id\": \"hdl_01M7DA5GDXZ59KQKP6ZHFC45GP\", \"kind\": \"resource\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"country\", \"type\": \"VARCHAR\"}]}, \"description\": \"A table of rows and columns.\", \"capabilities\": [{\"name\": \"dataset.schema\", \"description\": \"Return the column names and types.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.count\", \"description\": \"Return the number of rows.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.head\", \"description\": \"Return the first rows. The output stops at `n` rows or at the size limit and says so.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1, \"default\": 10}}}}, {\"name\": \"dataset.filter\", \"description\": \"Derive a handle to the rows that pass every predicate.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"where\"], \"properties\": {\"where\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\", \"op\", \"value\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"op\": {\"enum\": [\"eq\", \"ne\", \"lt\", \"le\", \"gt\", \"ge\", \"in\"]}, \"value\": {\"anyOf\": [{\"type\": [\"string\", \"number\", \"boolean\"]}, {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": [\"string\", \"number\", \"boolean\"]}}]}}}}}}}, {\"name\": \"dataset.select\", \"description\": \"Derive a handle to a subset of the columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"columns\"], \"properties\": {\"columns\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"string\", \"minLength\": 1}}}}}, {\"name\": \"dataset.aggregate\", \"description\": \"Derive a handle to one row for each group, with the metrics as columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"metrics\"], \"properties\": {\"group_by\": {\"type\": \"array\", \"items\": {\"type\": \"string\", \"minLength\": 1}}, \"metrics\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"fn\", \"as\"], \"properties\": {\"fn\": {\"enum\": [\"count\", \"count_distinct\", \"sum\", \"avg\", \"min\", \"max\"]}, \"column\": {\"type\": \"string\", \"minLength\": 1}, \"as\": {\"type\": \"string\", \"minLength\": 1}}}}}}}, {\"name\": \"dataset.sort\", \"description\": \"Derive a handle to the rows in a given order.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"by\"], \"properties\": {\"by\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"descending\": {\"type\": \"boolean\", \"default\": false}}}}}}}, {\"name\": \"dataset.limit\", \"description\": \"Derive a handle to the first `n` rows.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"n\"], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1}}}}, {\"name\": \"dataset.join\", \"description\": \"Derive a handle to the join of this dataset (left) with a second dataset handle (right).\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"right\", \"on\"], \"properties\": {\"right\": {\"type\": \"object\", \"required\": [\"$handle\"], \"additionalProperties\": false, \"properties\": {\"$handle\": {\"type\": \"string\"}}}, \"on\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"left\", \"right\"], \"properties\": {\"left\": {\"type\": \"string\", \"minLength\": 1}, \"right\": {\"type\": \"string\", \"minLength\": 1}}}}, \"how\": {\"enum\": [\"inner\", \"left\"], \"default\": \"inner\"}}}}]}"
+  },
+  {
+   "role": "assistant",
+   "content": "I'll aggregate the events data by event_type to sum the amounts, then sort to find the largest.\n\n",
+   "tool_calls": [
+    {
+     "id": "8EAk0kXblecgyuJsZ61FD24SWLPcBjJw",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA5GEQNH5YC4ZZT3CT8D0V",
+       "capability": "dataset.aggregate",
+       "input": {
+        "group_by": [
+         "event_type"
+        ],
+        "metrics": [
+         {
+          "as": "total_amount",
+          "column": "amount",
+          "fn": "sum"
+         }
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DA6JTJT8V0YYXCXX7M2GCX\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"total_amount\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "Now I'll sort the aggregated results by total_amount in descending order.\n\n",
+   "tool_calls": [
+    {
+     "id": "HyDlrTrPialrWoYygksm0kapPJ29w6VU",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA6JTJT8V0YYXCXX7M2GCX",
+       "capability": "dataset.sort",
+       "input": {
+        "by": [
+         {
+          "column": "total_amount",
+          "descending": true
+         }
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DA6PAQR7GF9RG0174JZWFY\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"total_amount\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "nRugjCQ5HbPWFqX7Qou7XU2lkAERyTe2",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA6PAQR7GF9RG0174JZWFY",
+       "capability": "dataset.limit",
+       "input": {
+        "n": 1
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DA6RX1GXC8NHVHGJJX3JQ4\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"total_amount\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "VN6ngZNBTSw6j8C1Eq16UFBnwD3Dra3b",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA6RX1GXC8NHVHGJJX3JQ4",
+       "capability": "dataset.head",
+       "input": {
+        "n": 1
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"output\": {\"columns\": [\"event_type\", \"total_amount\"], \"rows\": [[\"click\", 343209.79999999964]], \"truncated\": false}}"
+  },
+  {
+   "role": "assistant",
+   "content": "The event_type with the largest total amount is **click** (total amount \u2248 343,209.80)."
+  }
+ ],
+ "join_10000": [
+  {
+   "role": "system",
+   "content": "You answer questions about data that you cannot see directly. You have handles: references to resources.\nUse handle_describe to learn what a handle is and what its capabilities need as input.\nUse handle_invoke to run a capability. Some capabilities return a new handle. Use that new handle id in your next call.\nTo pass a handle as an input value, write {\"$handle\": \"<handle id>\"}.\nWhen you have the answer, reply with the answer in one short sentence. Give numbers as plain digits.\n\nThe id of the events handle is hdl_01M7DA5GEQNH5YC4ZZT3CT8D0V\nThe id of the customers handle is hdl_01M7DA5GDXZ59KQKP6ZHFC45GP"
+  },
+  {
+   "role": "user",
+   "content": "Which 3 countries have the most revenue from 'purchase' events? Revenue is the sum of amount. The country of a customer is in the customers dataset. Give the 3 country codes, largest first."
+  },
+  {
+   "role": "assistant",
+   "content": "I'll start by describing both handles to understand their schemas and capabilities.\n\n",
+   "tool_calls": [
+    {
+     "id": "wk24yWnjC1f0WIkq7B6ykKuwRx24bqo4",
+     "function": {
+      "index": 0,
+      "name": "handle_describe",
+      "arguments": {
+       "handle": "hdl_01M7DA5GEQNH5YC4ZZT3CT8D0V"
+      }
+     }
+    },
+    {
+     "id": "zw4J4GdC6xxJhMDSryQ15wOGgtKVemtI",
+     "function": {
+      "index": 1,
+      "name": "handle_describe",
+      "arguments": {
+       "handle": "hdl_01M7DA5GDXZ59KQKP6ZHFC45GP"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_describe",
+   "content": "{\"id\": \"hdl_01M7DA5GEQNH5YC4ZZT3CT8D0V\", \"kind\": \"resource\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}]}, \"description\": \"A table of rows and columns.\", \"capabilities\": [{\"name\": \"dataset.schema\", \"description\": \"Return the column names and types.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.count\", \"description\": \"Return the number of rows.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.head\", \"description\": \"Return the first rows. The output stops at `n` rows or at the size limit and says so.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1, \"default\": 10}}}}, {\"name\": \"dataset.filter\", \"description\": \"Derive a handle to the rows that pass every predicate.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"where\"], \"properties\": {\"where\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\", \"op\", \"value\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"op\": {\"enum\": [\"eq\", \"ne\", \"lt\", \"le\", \"gt\", \"ge\", \"in\"]}, \"value\": {\"anyOf\": [{\"type\": [\"string\", \"number\", \"boolean\"]}, {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": [\"string\", \"number\", \"boolean\"]}}]}}}}}}}, {\"name\": \"dataset.select\", \"description\": \"Derive a handle to a subset of the columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"columns\"], \"properties\": {\"columns\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"string\", \"minLength\": 1}}}}}, {\"name\": \"dataset.aggregate\", \"description\": \"Derive a handle to one row for each group, with the metrics as columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"metrics\"], \"properties\": {\"group_by\": {\"type\": \"array\", \"items\": {\"type\": \"string\", \"minLength\": 1}}, \"metrics\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"fn\", \"as\"], \"properties\": {\"fn\": {\"enum\": [\"count\", \"count_distinct\", \"sum\", \"avg\", \"min\", \"max\"]}, \"column\": {\"type\": \"string\", \"minLength\": 1}, \"as\": {\"type\": \"string\", \"minLength\": 1}}}}}}}, {\"name\": \"dataset.sort\", \"description\": \"Derive a handle to the rows in a given order.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"by\"], \"properties\": {\"by\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"descending\": {\"type\": \"boolean\", \"default\": false}}}}}}}, {\"name\": \"dataset.limit\", \"description\": \"Derive a handle to the first `n` rows.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"n\"], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1}}}}, {\"name\": \"dataset.join\", \"description\": \"Derive a handle to the join of this dataset (left) with a second dataset handle (right).\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"right\", \"on\"], \"properties\": {\"right\": {\"type\": \"object\", \"required\": [\"$handle\"], \"additionalProperties\": false, \"properties\": {\"$handle\": {\"type\": \"string\"}}}, \"on\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"left\", \"right\"], \"properties\": {\"left\": {\"type\": \"string\", \"minLength\": 1}, \"right\": {\"type\": \"string\", \"minLength\": 1}}}}, \"how\": {\"enum\": [\"inner\", \"left\"], \"default\": \"inner\"}}}}]}"
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_describe",
+   "content": "{\"id\": \"hdl_01M7DA5GDXZ59KQKP6ZHFC45GP\", \"kind\": \"resource\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"country\", \"type\": \"VARCHAR\"}]}, \"description\": \"A table of rows and columns.\", \"capabilities\": [{\"name\": \"dataset.schema\", \"description\": \"Return the column names and types.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.count\", \"description\": \"Return the number of rows.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.head\", \"description\": \"Return the first rows. The output stops at `n` rows or at the size limit and says so.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1, \"default\": 10}}}}, {\"name\": \"dataset.filter\", \"description\": \"Derive a handle to the rows that pass every predicate.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"where\"], \"properties\": {\"where\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\", \"op\", \"value\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"op\": {\"enum\": [\"eq\", \"ne\", \"lt\", \"le\", \"gt\", \"ge\", \"in\"]}, \"value\": {\"anyOf\": [{\"type\": [\"string\", \"number\", \"boolean\"]}, {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": [\"string\", \"number\", \"boolean\"]}}]}}}}}}}, {\"name\": \"dataset.select\", \"description\": \"Derive a handle to a subset of the columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"columns\"], \"properties\": {\"columns\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"string\", \"minLength\": 1}}}}}, {\"name\": \"dataset.aggregate\", \"description\": \"Derive a handle to one row for each group, with the metrics as columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"metrics\"], \"properties\": {\"group_by\": {\"type\": \"array\", \"items\": {\"type\": \"string\", \"minLength\": 1}}, \"metrics\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"fn\", \"as\"], \"properties\": {\"fn\": {\"enum\": [\"count\", \"count_distinct\", \"sum\", \"avg\", \"min\", \"max\"]}, \"column\": {\"type\": \"string\", \"minLength\": 1}, \"as\": {\"type\": \"string\", \"minLength\": 1}}}}}}}, {\"name\": \"dataset.sort\", \"description\": \"Derive a handle to the rows in a given order.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"by\"], \"properties\": {\"by\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"descending\": {\"type\": \"boolean\", \"default\": false}}}}}}}, {\"name\": \"dataset.limit\", \"description\": \"Derive a handle to the first `n` rows.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"n\"], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1}}}}, {\"name\": \"dataset.join\", \"description\": \"Derive a handle to the join of this dataset (left) with a second dataset handle (right).\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"right\", \"on\"], \"properties\": {\"right\": {\"type\": \"object\", \"required\": [\"$handle\"], \"additionalProperties\": false, \"properties\": {\"$handle\": {\"type\": \"string\"}}}, \"on\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"left\", \"right\"], \"properties\": {\"left\": {\"type\": \"string\", \"minLength\": 1}, \"right\": {\"type\": \"string\", \"minLength\": 1}}}}, \"how\": {\"enum\": [\"inner\", \"left\"], \"default\": \"inner\"}}}}]}"
+  },
+  {
+   "role": "assistant",
+   "content": "Now I understand both schemas. Let me join the events (purchase amounts) with customers (country) on customer_id, filter for 'purchase' events, aggregate the sum of amount by country, and sort descending.\n\n",
+   "tool_calls": [
+    {
+     "id": "j7IPaaaJJ6Ubh03UJuv9eAkA6PTxtZCk",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA5GEQNH5YC4ZZT3CT8D0V",
+       "capability": "dataset.filter",
+       "input": {
+        "where": [
+         {
+          "column": "event_type",
+          "op": "eq",
+          "value": "purchase"
+         }
+        ]
+       }
+      }
+     }
+    },
+    {
+     "id": "kFvv5MP9cSUNX7nJXCIfsAIAXkCEfddX",
+     "function": {
+      "index": 1,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA5GDXZ59KQKP6ZHFC45GP",
+       "capability": "dataset.select",
+       "input": {
+        "columns": [
+         "customer_id",
+         "country"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DA7B55FXNQWQXHHYTM7K9W\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DA7B5JEXEWVBV4E7367E9N\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"country\", \"type\": \"VARCHAR\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "Now let me join the filtered purchase events with the customers dataset on customer_id.\n\n",
+   "tool_calls": [
+    {
+     "id": "6LOkkZvv3DqRthe7DoMyYHxnDNPjiLMD",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA7B55FXNQWQXHHYTM7K9W",
+       "capability": "dataset.join",
+       "input": {
+        "how": "inner",
+        "on": [
+         {
+          "left": "customer_id",
+          "right": "customer_id"
+         }
+        ],
+        "right": {
+         "$handle": "hdl_01M7DA7B5JEXEWVBV4E7367E9N"
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DA7G76F8XTEE3MBQ9N8GX3\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}, {\"name\": \"country\", \"type\": \"VARCHAR\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "Now let me aggregate the sum of amount by country and sort descending.\n\n",
+   "tool_calls": [
+    {
+     "id": "c4vNzq3vDrUAlYxuK1TY2KWFXtKV82wF",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA7G76F8XTEE3MBQ9N8GX3",
+       "capability": "dataset.aggregate",
+       "input": {
+        "group_by": [
+         "country"
+        ],
+        "metrics": [
+         {
+          "as": "total_revenue",
+          "column": "amount",
+          "fn": "sum"
+         }
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DA7MKAN3XGSN6EMKVCFAM5\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"country\", \"type\": \"VARCHAR\"}, {\"name\": \"total_revenue\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "ABH4PDhlM70adzCaq3CKPNR17e9UAv0X",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA7MKAN3XGSN6EMKVCFAM5",
+       "capability": "dataset.sort",
+       "input": {
+        "by": [
+         {
+          "column": "total_revenue",
+          "descending": true
+         }
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DA7QRRHNKJPWFA8NSG7XQE\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"country\", \"type\": \"VARCHAR\"}, {\"name\": \"total_revenue\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "1Lb3q5JXVAW6mroZWegzV9Gukrgz9GUg",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA7QRRHNKJPWFA8NSG7XQE",
+       "capability": "dataset.limit",
+       "input": {
+        "n": 3
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DA7TCVD5J80BTHBDD6B4WJ\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"country\", \"type\": \"VARCHAR\"}, {\"name\": \"total_revenue\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "velIF4iBXO8igSZcJY0dK6FkTnVStcvZ",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA7TCVD5J80BTHBDD6B4WJ",
+       "capability": "dataset.head",
+       "input": {
+        "n": 3
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"output\": {\"columns\": [\"country\", \"total_revenue\"], \"rows\": [[\"MX\", 49357.859999999986], [\"JP\", 47881.94999999998], [\"CA\", 47113.74999999997]], \"truncated\": false}}"
+  },
+  {
+   "role": "assistant",
+   "content": "The 3 countries with the most revenue from 'purchase' events are:\n\n1. **MX** (Mexico) \u2014 $49,357.86\n2. **JP** (Japan) \u2014 $47,881.95\n3. **CA** (Canada) \u2014 $47,113.75\n\n",
+   "tool_calls": [
+    {
+     "id": "5XjV9uJHlsfSAEisnZqBp9Mpl0bSKylQ",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA5GEQNH5YC4ZZT3CT8D0V",
+       "capability": "dataset.schema",
+       "input": {}
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"output\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}]}}"
+  },
+  {
+   "role": "assistant",
+   "content": "The 3 countries with the most revenue from 'purchase' events, largest first, are:\n\n1. **MX** (Mexico) \u2014 $49,357.86\n2. **JP** (Japan) \u2014 $47,881.95\n3. **CA** (Canada) \u2014 $47,113.75"
+  }
+ ],
+ "count_1000000": [
+  {
+   "role": "system",
+   "content": "You answer questions about data that you cannot see directly. You have handles: references to resources.\nUse handle_describe to learn what a handle is and what its capabilities need as input.\nUse handle_invoke to run a capability. Some capabilities return a new handle. Use that new handle id in your next call.\nTo pass a handle as an input value, write {\"$handle\": \"<handle id>\"}.\nWhen you have the answer, reply with the answer in one short sentence. Give numbers as plain digits.\n\nThe id of the events handle is hdl_01M7DA854Z3KD77M9G1MMVSYZ6\nThe id of the customers handle is hdl_01M7DA5GDXZ59KQKP6ZHFC45GP"
+  },
+  {
+   "role": "user",
+   "content": "How many rows does the events dataset have?"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "jd8AR7R1mii4y0TCxRdjt9klKBTHd1CB",
+     "function": {
+      "index": 0,
+      "name": "handle_describe",
+      "arguments": {
+       "handle": "hdl_01M7DA854Z3KD77M9G1MMVSYZ6"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_describe",
+   "content": "{\"id\": \"hdl_01M7DA854Z3KD77M9G1MMVSYZ6\", \"kind\": \"resource\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}]}, \"description\": \"A table of rows and columns.\", \"capabilities\": [{\"name\": \"dataset.schema\", \"description\": \"Return the column names and types.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.count\", \"description\": \"Return the number of rows.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.head\", \"description\": \"Return the first rows. The output stops at `n` rows or at the size limit and says so.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1, \"default\": 10}}}}, {\"name\": \"dataset.filter\", \"description\": \"Derive a handle to the rows that pass every predicate.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"where\"], \"properties\": {\"where\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\", \"op\", \"value\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"op\": {\"enum\": [\"eq\", \"ne\", \"lt\", \"le\", \"gt\", \"ge\", \"in\"]}, \"value\": {\"anyOf\": [{\"type\": [\"string\", \"number\", \"boolean\"]}, {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": [\"string\", \"number\", \"boolean\"]}}]}}}}}}}, {\"name\": \"dataset.select\", \"description\": \"Derive a handle to a subset of the columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"columns\"], \"properties\": {\"columns\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"string\", \"minLength\": 1}}}}}, {\"name\": \"dataset.aggregate\", \"description\": \"Derive a handle to one row for each group, with the metrics as columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"metrics\"], \"properties\": {\"group_by\": {\"type\": \"array\", \"items\": {\"type\": \"string\", \"minLength\": 1}}, \"metrics\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"fn\", \"as\"], \"properties\": {\"fn\": {\"enum\": [\"count\", \"count_distinct\", \"sum\", \"avg\", \"min\", \"max\"]}, \"column\": {\"type\": \"string\", \"minLength\": 1}, \"as\": {\"type\": \"string\", \"minLength\": 1}}}}}}}, {\"name\": \"dataset.sort\", \"description\": \"Derive a handle to the rows in a given order.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"by\"], \"properties\": {\"by\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"descending\": {\"type\": \"boolean\", \"default\": false}}}}}}}, {\"name\": \"dataset.limit\", \"description\": \"Derive a handle to the first `n` rows.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"n\"], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1}}}}, {\"name\": \"dataset.join\", \"description\": \"Derive a handle to the join of this dataset (left) with a second dataset handle (right).\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"right\", \"on\"], \"properties\": {\"right\": {\"type\": \"object\", \"required\": [\"$handle\"], \"additionalProperties\": false, \"properties\": {\"$handle\": {\"type\": \"string\"}}}, \"on\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"left\", \"right\"], \"properties\": {\"left\": {\"type\": \"string\", \"minLength\": 1}, \"right\": {\"type\": \"string\", \"minLength\": 1}}}}, \"how\": {\"enum\": [\"inner\", \"left\"], \"default\": \"inner\"}}}}]}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "GY381sNPXjCswLuQtHAClmqHvAL8g9VY",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA854Z3KD77M9G1MMVSYZ6",
+       "capability": "dataset.count",
+       "input": {}
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"output\": {\"rows\": 1000000}}"
+  },
+  {
+   "role": "assistant",
+   "content": "The events dataset has 1,000,000 rows."
+  }
+ ],
+ "filter_1000000": [
+  {
+   "role": "system",
+   "content": "You answer questions about data that you cannot see directly. You have handles: references to resources.\nUse handle_describe to learn what a handle is and what its capabilities need as input.\nUse handle_invoke to run a capability. Some capabilities return a new handle. Use that new handle id in your next call.\nTo pass a handle as an input value, write {\"$handle\": \"<handle id>\"}.\nWhen you have the answer, reply with the answer in one short sentence. Give numbers as plain digits.\n\nThe id of the events handle is hdl_01M7DA854Z3KD77M9G1MMVSYZ6\nThe id of the customers handle is hdl_01M7DA5GDXZ59KQKP6ZHFC45GP"
+  },
+  {
+   "role": "user",
+   "content": "How many events have the event_type 'purchase'?"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "zv1aDOc9P0pNyFLcR2upxBnH4RcC1qXd",
+     "function": {
+      "index": 0,
+      "name": "handle_describe",
+      "arguments": {
+       "handle": "hdl_01M7DA854Z3KD77M9G1MMVSYZ6"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_describe",
+   "content": "{\"id\": \"hdl_01M7DA854Z3KD77M9G1MMVSYZ6\", \"kind\": \"resource\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}]}, \"description\": \"A table of rows and columns.\", \"capabilities\": [{\"name\": \"dataset.schema\", \"description\": \"Return the column names and types.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.count\", \"description\": \"Return the number of rows.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.head\", \"description\": \"Return the first rows. The output stops at `n` rows or at the size limit and says so.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1, \"default\": 10}}}}, {\"name\": \"dataset.filter\", \"description\": \"Derive a handle to the rows that pass every predicate.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"where\"], \"properties\": {\"where\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\", \"op\", \"value\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"op\": {\"enum\": [\"eq\", \"ne\", \"lt\", \"le\", \"gt\", \"ge\", \"in\"]}, \"value\": {\"anyOf\": [{\"type\": [\"string\", \"number\", \"boolean\"]}, {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": [\"string\", \"number\", \"boolean\"]}}]}}}}}}}, {\"name\": \"dataset.select\", \"description\": \"Derive a handle to a subset of the columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"columns\"], \"properties\": {\"columns\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"string\", \"minLength\": 1}}}}}, {\"name\": \"dataset.aggregate\", \"description\": \"Derive a handle to one row for each group, with the metrics as columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"metrics\"], \"properties\": {\"group_by\": {\"type\": \"array\", \"items\": {\"type\": \"string\", \"minLength\": 1}}, \"metrics\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"fn\", \"as\"], \"properties\": {\"fn\": {\"enum\": [\"count\", \"count_distinct\", \"sum\", \"avg\", \"min\", \"max\"]}, \"column\": {\"type\": \"string\", \"minLength\": 1}, \"as\": {\"type\": \"string\", \"minLength\": 1}}}}}}}, {\"name\": \"dataset.sort\", \"description\": \"Derive a handle to the rows in a given order.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"by\"], \"properties\": {\"by\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"descending\": {\"type\": \"boolean\", \"default\": false}}}}}}}, {\"name\": \"dataset.limit\", \"description\": \"Derive a handle to the first `n` rows.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"n\"], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1}}}}, {\"name\": \"dataset.join\", \"description\": \"Derive a handle to the join of this dataset (left) with a second dataset handle (right).\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"right\", \"on\"], \"properties\": {\"right\": {\"type\": \"object\", \"required\": [\"$handle\"], \"additionalProperties\": false, \"properties\": {\"$handle\": {\"type\": \"string\"}}}, \"on\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"left\", \"right\"], \"properties\": {\"left\": {\"type\": \"string\", \"minLength\": 1}, \"right\": {\"type\": \"string\", \"minLength\": 1}}}}, \"how\": {\"enum\": [\"inner\", \"left\"], \"default\": \"inner\"}}}}]}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "KTrrsCDMxMkyuv6O1J7wXkQ3NRU4rPV7",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA854Z3KD77M9G1MMVSYZ6",
+       "capability": "dataset.filter",
+       "input": {
+        "where": [
+         {
+          "column": "event_type",
+          "op": "eq",
+          "value": "purchase"
+         }
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DA8ME724DPFP4ZXN42KYNR\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "B2LFYwWwbtE96tuHXisyCEexHqTQz50c",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA8ME724DPFP4ZXN42KYNR",
+       "capability": "dataset.count",
+       "input": {}
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"output\": {\"rows\": 332867}}"
+  },
+  {
+   "role": "assistant",
+   "content": "There are **332,867** events with the event_type 'purchase'."
+  }
+ ],
+ "group_1000000": [
+  {
+   "role": "system",
+   "content": "You answer questions about data that you cannot see directly. You have handles: references to resources.\nUse handle_describe to learn what a handle is and what its capabilities need as input.\nUse handle_invoke to run a capability. Some capabilities return a new handle. Use that new handle id in your next call.\nTo pass a handle as an input value, write {\"$handle\": \"<handle id>\"}.\nWhen you have the answer, reply with the answer in one short sentence. Give numbers as plain digits.\n\nThe id of the events handle is hdl_01M7DA854Z3KD77M9G1MMVSYZ6\nThe id of the customers handle is hdl_01M7DA5GDXZ59KQKP6ZHFC45GP"
+  },
+  {
+   "role": "user",
+   "content": "Which event_type has the largest total amount? Give the event_type."
+  },
+  {
+   "role": "assistant",
+   "content": "I'll investigate the events handle to find which event_type has the largest total amount.\n\n",
+   "tool_calls": [
+    {
+     "id": "RqvaZ8vrgPPp3LfYg4BXZAqaDThlD1o5",
+     "function": {
+      "index": 0,
+      "name": "handle_describe",
+      "arguments": {
+       "handle": "hdl_01M7DA854Z3KD77M9G1MMVSYZ6"
+      }
+     }
+    },
+    {
+     "id": "ozzlTuMRorfIIa0MNfA23DJ2ujnnsLaJ",
+     "function": {
+      "index": 1,
+      "name": "handle_describe",
+      "arguments": {
+       "handle": "hdl_01M7DA5GDXZ59KQKP6ZHFC45GP"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_describe",
+   "content": "{\"id\": \"hdl_01M7DA854Z3KD77M9G1MMVSYZ6\", \"kind\": \"resource\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}]}, \"description\": \"A table of rows and columns.\", \"capabilities\": [{\"name\": \"dataset.schema\", \"description\": \"Return the column names and types.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.count\", \"description\": \"Return the number of rows.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.head\", \"description\": \"Return the first rows. The output stops at `n` rows or at the size limit and says so.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1, \"default\": 10}}}}, {\"name\": \"dataset.filter\", \"description\": \"Derive a handle to the rows that pass every predicate.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"where\"], \"properties\": {\"where\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\", \"op\", \"value\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"op\": {\"enum\": [\"eq\", \"ne\", \"lt\", \"le\", \"gt\", \"ge\", \"in\"]}, \"value\": {\"anyOf\": [{\"type\": [\"string\", \"number\", \"boolean\"]}, {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": [\"string\", \"number\", \"boolean\"]}}]}}}}}}}, {\"name\": \"dataset.select\", \"description\": \"Derive a handle to a subset of the columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"columns\"], \"properties\": {\"columns\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"string\", \"minLength\": 1}}}}}, {\"name\": \"dataset.aggregate\", \"description\": \"Derive a handle to one row for each group, with the metrics as columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"metrics\"], \"properties\": {\"group_by\": {\"type\": \"array\", \"items\": {\"type\": \"string\", \"minLength\": 1}}, \"metrics\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"fn\", \"as\"], \"properties\": {\"fn\": {\"enum\": [\"count\", \"count_distinct\", \"sum\", \"avg\", \"min\", \"max\"]}, \"column\": {\"type\": \"string\", \"minLength\": 1}, \"as\": {\"type\": \"string\", \"minLength\": 1}}}}}}}, {\"name\": \"dataset.sort\", \"description\": \"Derive a handle to the rows in a given order.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"by\"], \"properties\": {\"by\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"descending\": {\"type\": \"boolean\", \"default\": false}}}}}}}, {\"name\": \"dataset.limit\", \"description\": \"Derive a handle to the first `n` rows.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"n\"], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1}}}}, {\"name\": \"dataset.join\", \"description\": \"Derive a handle to the join of this dataset (left) with a second dataset handle (right).\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"right\", \"on\"], \"properties\": {\"right\": {\"type\": \"object\", \"required\": [\"$handle\"], \"additionalProperties\": false, \"properties\": {\"$handle\": {\"type\": \"string\"}}}, \"on\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"left\", \"right\"], \"properties\": {\"left\": {\"type\": \"string\", \"minLength\": 1}, \"right\": {\"type\": \"string\", \"minLength\": 1}}}}, \"how\": {\"enum\": [\"inner\", \"left\"], \"default\": \"inner\"}}}}]}"
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_describe",
+   "content": "{\"id\": \"hdl_01M7DA5GDXZ59KQKP6ZHFC45GP\", \"kind\": \"resource\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"country\", \"type\": \"VARCHAR\"}]}, \"description\": \"A table of rows and columns.\", \"capabilities\": [{\"name\": \"dataset.schema\", \"description\": \"Return the column names and types.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.count\", \"description\": \"Return the number of rows.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.head\", \"description\": \"Return the first rows. The output stops at `n` rows or at the size limit and says so.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1, \"default\": 10}}}}, {\"name\": \"dataset.filter\", \"description\": \"Derive a handle to the rows that pass every predicate.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"where\"], \"properties\": {\"where\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\", \"op\", \"value\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"op\": {\"enum\": [\"eq\", \"ne\", \"lt\", \"le\", \"gt\", \"ge\", \"in\"]}, \"value\": {\"anyOf\": [{\"type\": [\"string\", \"number\", \"boolean\"]}, {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": [\"string\", \"number\", \"boolean\"]}}]}}}}}}}, {\"name\": \"dataset.select\", \"description\": \"Derive a handle to a subset of the columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"columns\"], \"properties\": {\"columns\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"string\", \"minLength\": 1}}}}}, {\"name\": \"dataset.aggregate\", \"description\": \"Derive a handle to one row for each group, with the metrics as columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"metrics\"], \"properties\": {\"group_by\": {\"type\": \"array\", \"items\": {\"type\": \"string\", \"minLength\": 1}}, \"metrics\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"fn\", \"as\"], \"properties\": {\"fn\": {\"enum\": [\"count\", \"count_distinct\", \"sum\", \"avg\", \"min\", \"max\"]}, \"column\": {\"type\": \"string\", \"minLength\": 1}, \"as\": {\"type\": \"string\", \"minLength\": 1}}}}}}}, {\"name\": \"dataset.sort\", \"description\": \"Derive a handle to the rows in a given order.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"by\"], \"properties\": {\"by\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"descending\": {\"type\": \"boolean\", \"default\": false}}}}}}}, {\"name\": \"dataset.limit\", \"description\": \"Derive a handle to the first `n` rows.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"n\"], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1}}}}, {\"name\": \"dataset.join\", \"description\": \"Derive a handle to the join of this dataset (left) with a second dataset handle (right).\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"right\", \"on\"], \"properties\": {\"right\": {\"type\": \"object\", \"required\": [\"$handle\"], \"additionalProperties\": false, \"properties\": {\"$handle\": {\"type\": \"string\"}}}, \"on\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"left\", \"right\"], \"properties\": {\"left\": {\"type\": \"string\", \"minLength\": 1}, \"right\": {\"type\": \"string\", \"minLength\": 1}}}}, \"how\": {\"enum\": [\"inner\", \"left\"], \"default\": \"inner\"}}}}]}"
+  },
+  {
+   "role": "assistant",
+   "content": "The events dataset has the `event_type` and `amount` columns I need. I'll aggregate the total amount by event_type and sort descending.\n\n",
+   "tool_calls": [
+    {
+     "id": "eQovdBpiGld7yP850DALYw7MOM5vxb6o",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA854Z3KD77M9G1MMVSYZ6",
+       "capability": "dataset.aggregate",
+       "input": {
+        "group_by": [
+         "event_type"
+        ],
+        "metrics": [
+         {
+          "as": "total_amount",
+          "column": "amount",
+          "fn": "sum"
+         }
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DA93VD59W9AVTV9APS3EFA\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"total_amount\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "Now I'll sort the aggregated results by total_amount in descending order.\n\n",
+   "tool_calls": [
+    {
+     "id": "5tYGTaLJAkSVulBJNKR0IoKPXo6yyJ3B",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA93VD59W9AVTV9APS3EFA",
+       "capability": "dataset.sort",
+       "input": {
+        "by": [
+         {
+          "column": "total_amount",
+          "descending": true
+         }
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DA97HKE6P0409HRXVPXNXM\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"total_amount\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "Now I'll look at the top rows to identify the event_type with the largest total amount.\n\n",
+   "tool_calls": [
+    {
+     "id": "sAopoUBnqAnfuYBZefbxbccnnCPLARdc",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA97HKE6P0409HRXVPXNXM",
+       "capability": "dataset.limit",
+       "input": {
+        "n": 5
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DA9AXPK8PWSVSGRSEV90VV\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"total_amount\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "I need to retrieve the actual data values. Let me use the head capability.\n\n",
+   "tool_calls": [
+    {
+     "id": "IY9KmpSjRTPOuGlAN8wime1laW5VSBSq",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA9AXPK8PWSVSGRSEV90VV",
+       "capability": "dataset.head",
+       "input": {
+        "n": 5
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"output\": {\"columns\": [\"event_type\", \"total_amount\"], \"rows\": [[\"click\", 33483852.06999993], [\"purchase\", 33310253.600000028], [\"view\", 33283648.6700001]], \"truncated\": false}}"
+  },
+  {
+   "role": "assistant",
+   "content": "The aggregated results show the total amounts by event_type:\n- click: 33,483,852.07\n- purchase: 33,310,253.60\n- view: 33,283,648.67\n\nThe event_type with the largest total amount is **click**."
+  }
+ ],
+ "join_1000000": [
+  {
+   "role": "system",
+   "content": "You answer questions about data that you cannot see directly. You have handles: references to resources.\nUse handle_describe to learn what a handle is and what its capabilities need as input.\nUse handle_invoke to run a capability. Some capabilities return a new handle. Use that new handle id in your next call.\nTo pass a handle as an input value, write {\"$handle\": \"<handle id>\"}.\nWhen you have the answer, reply with the answer in one short sentence. Give numbers as plain digits.\n\nThe id of the events handle is hdl_01M7DA854Z3KD77M9G1MMVSYZ6\nThe id of the customers handle is hdl_01M7DA5GDXZ59KQKP6ZHFC45GP"
+  },
+  {
+   "role": "user",
+   "content": "Which 3 countries have the most revenue from 'purchase' events? Revenue is the sum of amount. The country of a customer is in the customers dataset. Give the 3 country codes, largest first."
+  },
+  {
+   "role": "assistant",
+   "content": "I'll start by describing both handles to understand their schemas and capabilities.\n\n",
+   "tool_calls": [
+    {
+     "id": "08GpzFwCH7WI44nN5MjFUYCfpRJKrx1J",
+     "function": {
+      "index": 0,
+      "name": "handle_describe",
+      "arguments": {
+       "handle": "hdl_01M7DA854Z3KD77M9G1MMVSYZ6"
+      }
+     }
+    },
+    {
+     "id": "5g209piRdJzghQRG2eYgJwuBDWKuRi8n",
+     "function": {
+      "index": 1,
+      "name": "handle_describe",
+      "arguments": {
+       "handle": "hdl_01M7DA5GDXZ59KQKP6ZHFC45GP"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_describe",
+   "content": "{\"id\": \"hdl_01M7DA854Z3KD77M9G1MMVSYZ6\", \"kind\": \"resource\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}]}, \"description\": \"A table of rows and columns.\", \"capabilities\": [{\"name\": \"dataset.schema\", \"description\": \"Return the column names and types.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.count\", \"description\": \"Return the number of rows.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.head\", \"description\": \"Return the first rows. The output stops at `n` rows or at the size limit and says so.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1, \"default\": 10}}}}, {\"name\": \"dataset.filter\", \"description\": \"Derive a handle to the rows that pass every predicate.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"where\"], \"properties\": {\"where\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\", \"op\", \"value\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"op\": {\"enum\": [\"eq\", \"ne\", \"lt\", \"le\", \"gt\", \"ge\", \"in\"]}, \"value\": {\"anyOf\": [{\"type\": [\"string\", \"number\", \"boolean\"]}, {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": [\"string\", \"number\", \"boolean\"]}}]}}}}}}}, {\"name\": \"dataset.select\", \"description\": \"Derive a handle to a subset of the columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"columns\"], \"properties\": {\"columns\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"string\", \"minLength\": 1}}}}}, {\"name\": \"dataset.aggregate\", \"description\": \"Derive a handle to one row for each group, with the metrics as columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"metrics\"], \"properties\": {\"group_by\": {\"type\": \"array\", \"items\": {\"type\": \"string\", \"minLength\": 1}}, \"metrics\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"fn\", \"as\"], \"properties\": {\"fn\": {\"enum\": [\"count\", \"count_distinct\", \"sum\", \"avg\", \"min\", \"max\"]}, \"column\": {\"type\": \"string\", \"minLength\": 1}, \"as\": {\"type\": \"string\", \"minLength\": 1}}}}}}}, {\"name\": \"dataset.sort\", \"description\": \"Derive a handle to the rows in a given order.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"by\"], \"properties\": {\"by\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"descending\": {\"type\": \"boolean\", \"default\": false}}}}}}}, {\"name\": \"dataset.limit\", \"description\": \"Derive a handle to the first `n` rows.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"n\"], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1}}}}, {\"name\": \"dataset.join\", \"description\": \"Derive a handle to the join of this dataset (left) with a second dataset handle (right).\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"right\", \"on\"], \"properties\": {\"right\": {\"type\": \"object\", \"required\": [\"$handle\"], \"additionalProperties\": false, \"properties\": {\"$handle\": {\"type\": \"string\"}}}, \"on\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"left\", \"right\"], \"properties\": {\"left\": {\"type\": \"string\", \"minLength\": 1}, \"right\": {\"type\": \"string\", \"minLength\": 1}}}}, \"how\": {\"enum\": [\"inner\", \"left\"], \"default\": \"inner\"}}}}]}"
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_describe",
+   "content": "{\"id\": \"hdl_01M7DA5GDXZ59KQKP6ZHFC45GP\", \"kind\": \"resource\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"country\", \"type\": \"VARCHAR\"}]}, \"description\": \"A table of rows and columns.\", \"capabilities\": [{\"name\": \"dataset.schema\", \"description\": \"Return the column names and types.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.count\", \"description\": \"Return the number of rows.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.head\", \"description\": \"Return the first rows. The output stops at `n` rows or at the size limit and says so.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1, \"default\": 10}}}}, {\"name\": \"dataset.filter\", \"description\": \"Derive a handle to the rows that pass every predicate.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"where\"], \"properties\": {\"where\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\", \"op\", \"value\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"op\": {\"enum\": [\"eq\", \"ne\", \"lt\", \"le\", \"gt\", \"ge\", \"in\"]}, \"value\": {\"anyOf\": [{\"type\": [\"string\", \"number\", \"boolean\"]}, {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": [\"string\", \"number\", \"boolean\"]}}]}}}}}}}, {\"name\": \"dataset.select\", \"description\": \"Derive a handle to a subset of the columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"columns\"], \"properties\": {\"columns\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"string\", \"minLength\": 1}}}}}, {\"name\": \"dataset.aggregate\", \"description\": \"Derive a handle to one row for each group, with the metrics as columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"metrics\"], \"properties\": {\"group_by\": {\"type\": \"array\", \"items\": {\"type\": \"string\", \"minLength\": 1}}, \"metrics\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"fn\", \"as\"], \"properties\": {\"fn\": {\"enum\": [\"count\", \"count_distinct\", \"sum\", \"avg\", \"min\", \"max\"]}, \"column\": {\"type\": \"string\", \"minLength\": 1}, \"as\": {\"type\": \"string\", \"minLength\": 1}}}}}}}, {\"name\": \"dataset.sort\", \"description\": \"Derive a handle to the rows in a given order.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"by\"], \"properties\": {\"by\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"descending\": {\"type\": \"boolean\", \"default\": false}}}}}}}, {\"name\": \"dataset.limit\", \"description\": \"Derive a handle to the first `n` rows.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"n\"], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1}}}}, {\"name\": \"dataset.join\", \"description\": \"Derive a handle to the join of this dataset (left) with a second dataset handle (right).\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"right\", \"on\"], \"properties\": {\"right\": {\"type\": \"object\", \"required\": [\"$handle\"], \"additionalProperties\": false, \"properties\": {\"$handle\": {\"type\": \"string\"}}}, \"on\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"left\", \"right\"], \"properties\": {\"left\": {\"type\": \"string\", \"minLength\": 1}, \"right\": {\"type\": \"string\", \"minLength\": 1}}}}, \"how\": {\"enum\": [\"inner\", \"left\"], \"default\": \"inner\"}}}}]}"
+  },
+  {
+   "role": "assistant",
+   "content": "I'll filter the events dataset to only 'purchase' events, then join with customers to get country codes. Let me start these operations.\n\n",
+   "tool_calls": [
+    {
+     "id": "0GZDEVn7g8ye7ShlJ2YIwVHZfrNpM8tW",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA854Z3KD77M9G1MMVSYZ6",
+       "capability": "dataset.filter",
+       "input": {
+        "where": [
+         {
+          "column": "event_type",
+          "op": "eq",
+          "value": "purchase"
+         }
+        ]
+       }
+      }
+     }
+    },
+    {
+     "id": "Mv5E00hPRRNLvGS9C76NZtcI3xAMzGlg",
+     "function": {
+      "index": 1,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA5GDXZ59KQKP6ZHFC45GP",
+       "capability": "dataset.select",
+       "input": {
+        "columns": [
+         "customer_id",
+         "country"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DA9Z6J5DGKTGG8130NPPH3\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DA9Z724SH082XC3NDYV2RA\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"country\", \"type\": \"VARCHAR\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "Now I'll join the filtered purchase events with the customers dataset on customer_id.\n\n",
+   "tool_calls": [
+    {
+     "id": "HPcKhzUTNwnpEVw66Juq8Ji9G6OpaFhU",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "capability": "dataset.join",
+       "handle": "hdl_01M7DA9Z6J5DGKTGG8130NPPH3",
+       "input": {
+        "on": [
+         {
+          "left": "customer_id",
+          "right": "customer_id"
+         }
+        ],
+        "right": {
+         "$handle": "hdl_01M7DA9Z724SH082XC3NDYV2RA"
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DAA3YH5H298P2S35KPSK5V\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}, {\"name\": \"country\", \"type\": \"VARCHAR\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "Now I'll aggregate the joined data by country to sum the amounts.\n\n",
+   "tool_calls": [
+    {
+     "id": "kYoBVDj4IVNOuoTLPvwJKaIowNFfPfFo",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "capability": "dataset.aggregate",
+       "handle": "hdl_01M7DAA3YH5H298P2S35KPSK5V",
+       "input": {
+        "group_by": [
+         "country"
+        ],
+        "metrics": [
+         {
+          "as": "total_revenue",
+          "column": "amount",
+          "fn": "sum"
+         }
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DAA8ADMFRBDXHZ47X6EP5R\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"country\", \"type\": \"VARCHAR\"}, {\"name\": \"total_revenue\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "Now I'll sort by total_revenue descending and take the top 3.\n\n",
+   "tool_calls": [
+    {
+     "id": "gfddZksI9jM8dgrBRfutUbwymAGHIMTt",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DAA8ADMFRBDXHZ47X6EP5R",
+       "capability": "dataset.sort",
+       "input": {
+        "by": [
+         {
+          "column": "total_revenue",
+          "descending": true
+         }
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DAAC4YWP1EP1MQY1JFRHWF\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"country\", \"type\": \"VARCHAR\"}, {\"name\": \"total_revenue\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "Q6BrmHAg2kgdFAvhmuWlmN6eIF1RQTW6",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DAAC4YWP1EP1MQY1JFRHWF",
+       "capability": "dataset.limit",
+       "input": {
+        "n": 3
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DAAETMMGCXDEZRF5R1NC60\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"country\", \"type\": \"VARCHAR\"}, {\"name\": \"total_revenue\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "x3kTNuSRjK5wGDKlTRlEG1dFbeeEFNTh",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DAETMMGCXDEZRF5R1NC60",
+       "capability": "dataset.head",
+       "input": {
+        "n": 3
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"error\": {\"code\": \"HANDLE_NOT_FOUND\", \"message\": \"no handle hdl_01M7DAETMMGCXDEZRF5R1NC60\", \"retryable\": false}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "VL79YMnlADC2kztF5p7J2HpYpVeZvCfM",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "capability": "dataset.head",
+       "handle": "hdl_01M7DAETMMGCXDEZRF5R1NC60",
+       "input": {
+        "n": 3
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"error\": {\"code\": \"HANDLE_NOT_FOUND\", \"message\": \"no handle hdl_01M7DAETMMGCXDEZRF5R1NC60\", \"retryable\": false}}"
+  },
+  {
+   "role": "assistant",
+   "content": "I'll try the head capability with an empty input object.\n\n",
+   "tool_calls": [
+    {
+     "id": "FCjyD5x8V4Hjpx0zDZS0tjKXLshIxhqy",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "capability": "dataset.schema",
+       "handle": "hdl_01M7DAETMMGCXDEZRF5R1NC60",
+       "input": {}
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"error\": {\"code\": \"HANDLE_NOT_FOUND\", \"message\": \"no handle hdl_01M7DAETMMGCXDEZRF5R1NC60\", \"retryable\": false}}"
+  },
+  {
+   "role": "assistant",
+   "content": "I'll re-run the head capability on the sorted handle directly.\n\n",
+   "tool_calls": [
+    {
+     "id": "ocJ2Q4WXkNZDLRmO2gkqzyUNuAgFhX8C",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "capability": "dataset.head",
+       "handle": "hdl_01M7DAAC4YWP1EP1MQY1JFRHWF",
+       "input": {
+        "n": 3
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"output\": {\"columns\": [\"country\", \"total_revenue\"], \"rows\": [[\"BR\", 4803731.769999998], [\"US\", 4782002.700000009], [\"MX\", 4776612.670000009]], \"truncated\": false}}"
+  },
+  {
+   "role": "assistant",
+   "content": "The 3 countries with the most revenue from 'purchase' events are:\n\n- **BR** (Brazil): 4,803,731.77\n- **US** (United States): 4,782,002.70\n- **MX** (Mexico): 4,776,612.67\n\nThe 3 country codes, largest first, are **BR, US, MX**."
+  }
+ ],
+ "count_100000000": [
+  {
+   "role": "system",
+   "content": "You answer questions about data that you cannot see directly. You have handles: references to resources.\nUse handle_describe to learn what a handle is and what its capabilities need as input.\nUse handle_invoke to run a capability. Some capabilities return a new handle. Use that new handle id in your next call.\nTo pass a handle as an input value, write {\"$handle\": \"<handle id>\"}.\nWhen you have the answer, reply with the answer in one short sentence. Give numbers as plain digits.\n\nThe id of the events handle is hdl_01M7DABJR9WGQ942JNS49CARVH\nThe id of the customers handle is hdl_01M7DA5GDXZ59KQKP6ZHFC45GP"
+  },
+  {
+   "role": "user",
+   "content": "How many rows does the events dataset have?"
+  },
+  {
+   "role": "assistant",
+   "content": "I'll describe the events handle to see its capabilities, then use the appropriate one to count rows.\n\n",
+   "tool_calls": [
+    {
+     "id": "vIAxNYkHCqY5kulTGet1I7MMOQppIgV5",
+     "function": {
+      "index": 0,
+      "name": "handle_describe",
+      "arguments": {
+       "handle": "hdl_01M7DABJR9WGQ942JNS49CARVH"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_describe",
+   "content": "{\"id\": \"hdl_01M7DABJR9WGQ942JNS49CARVH\", \"kind\": \"resource\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}]}, \"description\": \"A table of rows and columns.\", \"capabilities\": [{\"name\": \"dataset.schema\", \"description\": \"Return the column names and types.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.count\", \"description\": \"Return the number of rows.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.head\", \"description\": \"Return the first rows. The output stops at `n` rows or at the size limit and says so.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1, \"default\": 10}}}}, {\"name\": \"dataset.filter\", \"description\": \"Derive a handle to the rows that pass every predicate.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"where\"], \"properties\": {\"where\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\", \"op\", \"value\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"op\": {\"enum\": [\"eq\", \"ne\", \"lt\", \"le\", \"gt\", \"ge\", \"in\"]}, \"value\": {\"anyOf\": [{\"type\": [\"string\", \"number\", \"boolean\"]}, {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": [\"string\", \"number\", \"boolean\"]}}]}}}}}}}, {\"name\": \"dataset.select\", \"description\": \"Derive a handle to a subset of the columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"columns\"], \"properties\": {\"columns\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"string\", \"minLength\": 1}}}}}, {\"name\": \"dataset.aggregate\", \"description\": \"Derive a handle to one row for each group, with the metrics as columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"metrics\"], \"properties\": {\"group_by\": {\"type\": \"array\", \"items\": {\"type\": \"string\", \"minLength\": 1}}, \"metrics\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"fn\", \"as\"], \"properties\": {\"fn\": {\"enum\": [\"count\", \"count_distinct\", \"sum\", \"avg\", \"min\", \"max\"]}, \"column\": {\"type\": \"string\", \"minLength\": 1}, \"as\": {\"type\": \"string\", \"minLength\": 1}}}}}}}, {\"name\": \"dataset.sort\", \"description\": \"Derive a handle to the rows in a given order.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"by\"], \"properties\": {\"by\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"descending\": {\"type\": \"boolean\", \"default\": false}}}}}}}, {\"name\": \"dataset.limit\", \"description\": \"Derive a handle to the first `n` rows.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"n\"], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1}}}}, {\"name\": \"dataset.join\", \"description\": \"Derive a handle to the join of this dataset (left) with a second dataset handle (right).\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"right\", \"on\"], \"properties\": {\"right\": {\"type\": \"object\", \"required\": [\"$handle\"], \"additionalProperties\": false, \"properties\": {\"$handle\": {\"type\": \"string\"}}}, \"on\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"left\", \"right\"], \"properties\": {\"left\": {\"type\": \"string\", \"minLength\": 1}, \"right\": {\"type\": \"string\", \"minLength\": 1}}}}, \"how\": {\"enum\": [\"inner\", \"left\"], \"default\": \"inner\"}}}}]}"
+  },
+  {
+   "role": "assistant",
+   "content": "I'll use the `dataset.count` capability to get the number of rows.\n\n",
+   "tool_calls": [
+    {
+     "id": "X8bYDdP0YN5HAUfy87SVKfEOF0zTadLV",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DABJR9WGQ942JNS49CARVH",
+       "capability": "dataset.count",
+       "input": {}
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"output\": {\"rows\": 100000000}}"
+  },
+  {
+   "role": "assistant",
+   "content": "The events dataset has **100,000,000** rows (100 million)."
+  }
+ ],
+ "filter_100000000": [
+  {
+   "role": "system",
+   "content": "You answer questions about data that you cannot see directly. You have handles: references to resources.\nUse handle_describe to learn what a handle is and what its capabilities need as input.\nUse handle_invoke to run a capability. Some capabilities return a new handle. Use that new handle id in your next call.\nTo pass a handle as an input value, write {\"$handle\": \"<handle id>\"}.\nWhen you have the answer, reply with the answer in one short sentence. Give numbers as plain digits.\n\nThe id of the events handle is hdl_01M7DABJR9WGQ942JNS49CARVH\nThe id of the customers handle is hdl_01M7DA5GDXZ59KQKP6ZHFC45GP"
+  },
+  {
+   "role": "user",
+   "content": "How many events have the event_type 'purchase'?"
+  },
+  {
+   "role": "assistant",
+   "content": "Let me describe the events handle and then query it for the count of 'purchase' events.\n\n",
+   "tool_calls": [
+    {
+     "id": "GkzUrEPdDwE6ZAJLltnqwX3jo1f2VXKr",
+     "function": {
+      "index": 0,
+      "name": "handle_describe",
+      "arguments": {
+       "handle": "hdl_01M7DABJR9WGQ942JNS49CARVH"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_describe",
+   "content": "{\"id\": \"hdl_01M7DABJR9WGQ942JNS49CARVH\", \"kind\": \"resource\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}]}, \"description\": \"A table of rows and columns.\", \"capabilities\": [{\"name\": \"dataset.schema\", \"description\": \"Return the column names and types.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.count\", \"description\": \"Return the number of rows.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.head\", \"description\": \"Return the first rows. The output stops at `n` rows or at the size limit and says so.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1, \"default\": 10}}}}, {\"name\": \"dataset.filter\", \"description\": \"Derive a handle to the rows that pass every predicate.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"where\"], \"properties\": {\"where\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\", \"op\", \"value\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"op\": {\"enum\": [\"eq\", \"ne\", \"lt\", \"le\", \"gt\", \"ge\", \"in\"]}, \"value\": {\"anyOf\": [{\"type\": [\"string\", \"number\", \"boolean\"]}, {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": [\"string\", \"number\", \"boolean\"]}}]}}}}}}}, {\"name\": \"dataset.select\", \"description\": \"Derive a handle to a subset of the columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"columns\"], \"properties\": {\"columns\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"string\", \"minLength\": 1}}}}}, {\"name\": \"dataset.aggregate\", \"description\": \"Derive a handle to one row for each group, with the metrics as columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"metrics\"], \"properties\": {\"group_by\": {\"type\": \"array\", \"items\": {\"type\": \"string\", \"minLength\": 1}}, \"metrics\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"fn\", \"as\"], \"properties\": {\"fn\": {\"enum\": [\"count\", \"count_distinct\", \"sum\", \"avg\", \"min\", \"max\"]}, \"column\": {\"type\": \"string\", \"minLength\": 1}, \"as\": {\"type\": \"string\", \"minLength\": 1}}}}}}}, {\"name\": \"dataset.sort\", \"description\": \"Derive a handle to the rows in a given order.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"by\"], \"properties\": {\"by\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"descending\": {\"type\": \"boolean\", \"default\": false}}}}}}}, {\"name\": \"dataset.limit\", \"description\": \"Derive a handle to the first `n` rows.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"n\"], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1}}}}, {\"name\": \"dataset.join\", \"description\": \"Derive a handle to the join of this dataset (left) with a second dataset handle (right).\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"right\", \"on\"], \"properties\": {\"right\": {\"type\": \"object\", \"required\": [\"$handle\"], \"additionalProperties\": false, \"properties\": {\"$handle\": {\"type\": \"string\"}}}, \"on\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"left\", \"right\"], \"properties\": {\"left\": {\"type\": \"string\", \"minLength\": 1}, \"right\": {\"type\": \"string\", \"minLength\": 1}}}}, \"how\": {\"enum\": [\"inner\", \"left\"], \"default\": \"inner\"}}}}]}"
+  },
+  {
+   "role": "assistant",
+   "content": "I'll filter the events for event_type 'purchase' and count them.\n\n",
+   "tool_calls": [
+    {
+     "id": "JBAnzDgigmoUKTtCwFGxrRS2OBypQ2GR",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DABJR9WGQ942JNS49CARVH",
+       "capability": "dataset.filter",
+       "input": {
+        "where": [
+         {
+          "column": "event_type",
+          "op": "eq",
+          "value": "purchase"
+         }
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DAC4KHQ2VPCQEQTCYS1JGJ\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "ptKXpyXmwHe79lskVi5HjJbo2BrbVHwj",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DAC4KHQ2VPCQEQTCYS1JGJ",
+       "capability": "dataset.count",
+       "input": {}
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"output\": {\"rows\": 33329428}}"
+  },
+  {
+   "role": "assistant",
+   "content": "There are **33,329,428** events with the event_type 'purchase'."
+  }
+ ],
+ "group_100000000": [
+  {
+   "role": "system",
+   "content": "You answer questions about data that you cannot see directly. You have handles: references to resources.\nUse handle_describe to learn what a handle is and what its capabilities need as input.\nUse handle_invoke to run a capability. Some capabilities return a new handle. Use that new handle id in your next call.\nTo pass a handle as an input value, write {\"$handle\": \"<handle id>\"}.\nWhen you have the answer, reply with the answer in one short sentence. Give numbers as plain digits.\n\nThe id of the events handle is hdl_01M7DABJR9WGQ942JNS49CARVH\nThe id of the customers handle is hdl_01M7DA5GDXZ59KQKP6ZHFC45GP"
+  },
+  {
+   "role": "user",
+   "content": "Which event_type has the largest total amount? Give the event_type."
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "nhz0PwPPyfvtvXwhpX61gzesrLZImoNv",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DABJR9WGQ942JNS49CARVH",
+       "capability": "schema",
+       "input": {}
+      }
+     }
+    },
+    {
+     "id": "nnctueLCHPVNqeY6VWRQe4POmYGtNwiv",
+     "function": {
+      "index": 1,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA5GDXZ59KQKP6ZHFC45GP",
+       "capability": "schema",
+       "input": {}
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"error\": {\"code\": \"CAPABILITY_NOT_FOUND\", \"message\": \"dataset has no capability schema\", \"retryable\": false, \"details\": {\"permitted\": [\"dataset.aggregate\", \"dataset.count\", \"dataset.filter\", \"dataset.head\", \"dataset.join\", \"dataset.limit\", \"dataset.schema\", \"dataset.select\", \"dataset.sort\"]}}}"
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"error\": {\"code\": \"CAPABILITY_NOT_FOUND\", \"message\": \"dataset has no capability schema\", \"retryable\": false, \"details\": {\"permitted\": [\"dataset.aggregate\", \"dataset.count\", \"dataset.filter\", \"dataset.head\", \"dataset.join\", \"dataset.limit\", \"dataset.schema\", \"dataset.select\", \"dataset.sort\"]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "SMHxDrBjLSZsZIsq5xSpjHki8hb9Wsu2",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DABJR9WGQ942JNS49CARVH",
+       "capability": "dataset.schema",
+       "input": {}
+      }
+     }
+    },
+    {
+     "id": "ZBbq6XrO9f3LurwwB7Yow0RpV5iTGqAA",
+     "function": {
+      "index": 1,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA5GDXZ59KQKP6ZHFC45GP",
+       "capability": "dataset.schema",
+       "input": {}
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"output\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}]}}"
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"output\": {\"columns\": [{\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"country\", \"type\": \"VARCHAR\"}]}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "H5asyIpgYLQ4qcTXcvvICheYUxaqu8AS",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DABJR9WGQ942JNS49CARVH",
+       "capability": "dataset.aggregate",
+       "input": {
+        "columns": [
+         "amount"
+        ],
+        "func": "sum",
+        "group_by": [
+         "event_type"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"error\": {\"code\": \"INVALID_INPUT\", \"message\": \".: Additional properties are not allowed ('columns', 'func' were unexpected)\", \"retryable\": false, \"details\": {\"violations\": [\".: Additional properties are not allowed ('columns', 'func' were unexpected)\", \".: 'metrics' is a required property\"]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "fZ611O7KLaT2KS4hBGYrKD7jUy86a7nu",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DABJR9WGQ942JNS49CARVH",
+       "capability": "dataset.aggregate",
+       "input": {
+        "group_by": [
+         "event_type"
+        ],
+        "metrics": [
+         {
+          "field": "amount",
+          "func": "sum"
+         }
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"error\": {\"code\": \"INVALID_INPUT\", \"message\": \"metrics/0: Additional properties are not allowed ('field', 'func' were unexpected)\", \"retryable\": false, \"details\": {\"violations\": [\"metrics/0: Additional properties are not allowed ('field', 'func' were unexpected)\", \"metrics/0: 'fn' is a required property\", \"metrics/0: 'as' is a required property\"]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "gsN1zALydl3VBqmpAgYXmbJZOs4NlmxG",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "capability": "dataset.aggregate",
+       "handle": "hdl_01M7DABJR9WGQ942JNS49CARVH",
+       "input": {
+        "group_by": [
+         "event_type"
+        ],
+        "metrics": [
+         {
+          "as": "total_amount",
+          "fn": "sum",
+          "value": "amount"
+         }
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"error\": {\"code\": \"INVALID_INPUT\", \"message\": \"metrics/0: Additional properties are not allowed ('value' was unexpected)\", \"retryable\": false, \"details\": {\"violations\": [\"metrics/0: Additional properties are not allowed ('value' was unexpected)\"]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "0RY7IeKnMXaSI6CQxBQQFueyudMwrFrl",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "capability": "dataset.aggregate",
+       "handle": "hdl_01M7DABJR9WGQ942JNS49CARVH",
+       "input": {
+        "group_by": [
+         "event_type"
+        ],
+        "metrics": [
+         {
+          "as": "total_amount",
+          "column": "amount",
+          "fn": "sum"
+         }
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DACZ2ZF7DX5G7JHQNZA757\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"total_amount\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "FSijKF4dTTzY3wbyWrmbKmD4aoB3FTwy",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DACZ2ZF7DX5G7JHQNZA757",
+       "capability": "dataset.sort",
+       "input": {
+        "column": "total_amount",
+        "order": "desc"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"error\": {\"code\": \"INVALID_INPUT\", \"message\": \".: Additional properties are not allowed ('column', 'order' were unexpected)\", \"retryable\": false, \"details\": {\"violations\": [\".: Additional properties are not allowed ('column', 'order' were unexpected)\", \".: 'by' is a required property\"]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "weKRjBxuG47BgnZVWsTiddteKl95Bb3g",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DACZ2ZF7DX5G7JHQNZA757",
+       "capability": "dataset.sort",
+       "input": {
+        "by": [
+         "total_amount"
+        ],
+        "order": "desc"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"error\": {\"code\": \"INVALID_INPUT\", \"message\": \".: Additional properties are not allowed ('order' was unexpected)\", \"retryable\": false, \"details\": {\"violations\": [\".: Additional properties are not allowed ('order' was unexpected)\", \"by/0: 'total_amount' is not of type 'object'\"]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "JFREtoONTWMTlqttYs28ECfBxRtdNLag",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DACZ2ZF7DX5G7JHQNZA757",
+       "capability": "dataset.sort",
+       "input": {
+        "by": {
+         "column": "total_amount",
+         "order": "desc"
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"error\": {\"code\": \"INVALID_INPUT\", \"message\": \"by: {'column': 'total_amount', 'order': 'desc'} is not of type 'array'\", \"retryable\": false, \"details\": {\"violations\": [\"by: {'column': 'total_amount', 'order': 'desc'} is not of type 'array'\"]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "sWzjYKlqA970vMC7RFlTPhmTqRLoeDtJ",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DACZ2ZF7DX5G7JHQNZA757",
+       "capability": "dataset.sort",
+       "input": {
+        "by": [
+         "total_amount"
+        ],
+        "order": "desc"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"error\": {\"code\": \"INVALID_INPUT\", \"message\": \".: Additional properties are not allowed ('order' was unexpected)\", \"retryable\": false, \"details\": {\"violations\": [\".: Additional properties are not allowed ('order' was unexpected)\", \"by/0: 'total_amount' is not of type 'object'\"]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "vVH5j8T9Iv4hci5UiVNXALX3qkrOMvMJ",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DACZ2ZF7DX5G7JHQNZA757",
+       "capability": "dataset.head",
+       "input": {
+        "n": 10
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"output\": {\"columns\": [\"event_type\", \"total_amount\"], \"rows\": [[\"view\", 3332989799.9200716], [\"click\", 3333812673.6701274], [\"purchase\", 3333545499.1400433]], \"truncated\": false}}"
+  },
+  {
+   "role": "assistant",
+   "content": "The event_type with the largest total amount is **click**, with a total of approximately 3,333,812,673.67.\n\nFor reference:\n- click: 3,333,812,673.67\n- purchase: 3,333,545,499.14\n- view: 3,332,989,799.92"
+  }
+ ],
+ "join_100000000": [
+  {
+   "role": "system",
+   "content": "You answer questions about data that you cannot see directly. You have handles: references to resources.\nUse handle_describe to learn what a handle is and what its capabilities need as input.\nUse handle_invoke to run a capability. Some capabilities return a new handle. Use that new handle id in your next call.\nTo pass a handle as an input value, write {\"$handle\": \"<handle id>\"}.\nWhen you have the answer, reply with the answer in one short sentence. Give numbers as plain digits.\n\nThe id of the events handle is hdl_01M7DABJR9WGQ942JNS49CARVH\nThe id of the customers handle is hdl_01M7DA5GDXZ59KQKP6ZHFC45GP"
+  },
+  {
+   "role": "user",
+   "content": "Which 3 countries have the most revenue from 'purchase' events? Revenue is the sum of amount. The country of a customer is in the customers dataset. Give the 3 country codes, largest first."
+  },
+  {
+   "role": "assistant",
+   "content": "I'll start by describing both handles to understand their schemas and capabilities.\n\n",
+   "tool_calls": [
+    {
+     "id": "fVQu9BZkVtRjPcRcwSXIEyehG6njGSNG",
+     "function": {
+      "index": 0,
+      "name": "handle_describe",
+      "arguments": {
+       "handle": "hdl_01M7DABJR9WGQ942JNS49CARVH"
+      }
+     }
+    },
+    {
+     "id": "DfP4lKWLfmheNVJSeeDBjbmwKQfsJcd7",
+     "function": {
+      "index": 1,
+      "name": "handle_describe",
+      "arguments": {
+       "handle": "hdl_01M7DA5GDXZ59KQKP6ZHFC45GP"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_describe",
+   "content": "{\"id\": \"hdl_01M7DABJR9WGQ942JNS49CARVH\", \"kind\": \"resource\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}]}, \"description\": \"A table of rows and columns.\", \"capabilities\": [{\"name\": \"dataset.schema\", \"description\": \"Return the column names and types.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.count\", \"description\": \"Return the number of rows.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.head\", \"description\": \"Return the first rows. The output stops at `n` rows or at the size limit and says so.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1, \"default\": 10}}}}, {\"name\": \"dataset.filter\", \"description\": \"Derive a handle to the rows that pass every predicate.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"where\"], \"properties\": {\"where\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\", \"op\", \"value\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"op\": {\"enum\": [\"eq\", \"ne\", \"lt\", \"le\", \"gt\", \"ge\", \"in\"]}, \"value\": {\"anyOf\": [{\"type\": [\"string\", \"number\", \"boolean\"]}, {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": [\"string\", \"number\", \"boolean\"]}}]}}}}}}}, {\"name\": \"dataset.select\", \"description\": \"Derive a handle to a subset of the columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"columns\"], \"properties\": {\"columns\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"string\", \"minLength\": 1}}}}}, {\"name\": \"dataset.aggregate\", \"description\": \"Derive a handle to one row for each group, with the metrics as columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"metrics\"], \"properties\": {\"group_by\": {\"type\": \"array\", \"items\": {\"type\": \"string\", \"minLength\": 1}}, \"metrics\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"fn\", \"as\"], \"properties\": {\"fn\": {\"enum\": [\"count\", \"count_distinct\", \"sum\", \"avg\", \"min\", \"max\"]}, \"column\": {\"type\": \"string\", \"minLength\": 1}, \"as\": {\"type\": \"string\", \"minLength\": 1}}}}}}}, {\"name\": \"dataset.sort\", \"description\": \"Derive a handle to the rows in a given order.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"by\"], \"properties\": {\"by\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"descending\": {\"type\": \"boolean\", \"default\": false}}}}}}}, {\"name\": \"dataset.limit\", \"description\": \"Derive a handle to the first `n` rows.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"n\"], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1}}}}, {\"name\": \"dataset.join\", \"description\": \"Derive a handle to the join of this dataset (left) with a second dataset handle (right).\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"right\", \"on\"], \"properties\": {\"right\": {\"type\": \"object\", \"required\": [\"$handle\"], \"additionalProperties\": false, \"properties\": {\"$handle\": {\"type\": \"string\"}}}, \"on\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"left\", \"right\"], \"properties\": {\"left\": {\"type\": \"string\", \"minLength\": 1}, \"right\": {\"type\": \"string\", \"minLength\": 1}}}}, \"how\": {\"enum\": [\"inner\", \"left\"], \"default\": \"inner\"}}}}]}"
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_describe",
+   "content": "{\"id\": \"hdl_01M7DA5GDXZ59KQKP6ZHFC45GP\", \"kind\": \"resource\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"country\", \"type\": \"VARCHAR\"}]}, \"description\": \"A table of rows and columns.\", \"capabilities\": [{\"name\": \"dataset.schema\", \"description\": \"Return the column names and types.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.count\", \"description\": \"Return the number of rows.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {}}}, {\"name\": \"dataset.head\", \"description\": \"Return the first rows. The output stops at `n` rows or at the size limit and says so.\", \"returns\": \"value\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1, \"default\": 10}}}}, {\"name\": \"dataset.filter\", \"description\": \"Derive a handle to the rows that pass every predicate.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"where\"], \"properties\": {\"where\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\", \"op\", \"value\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"op\": {\"enum\": [\"eq\", \"ne\", \"lt\", \"le\", \"gt\", \"ge\", \"in\"]}, \"value\": {\"anyOf\": [{\"type\": [\"string\", \"number\", \"boolean\"]}, {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": [\"string\", \"number\", \"boolean\"]}}]}}}}}}}, {\"name\": \"dataset.select\", \"description\": \"Derive a handle to a subset of the columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"columns\"], \"properties\": {\"columns\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"string\", \"minLength\": 1}}}}}, {\"name\": \"dataset.aggregate\", \"description\": \"Derive a handle to one row for each group, with the metrics as columns.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"metrics\"], \"properties\": {\"group_by\": {\"type\": \"array\", \"items\": {\"type\": \"string\", \"minLength\": 1}}, \"metrics\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"fn\", \"as\"], \"properties\": {\"fn\": {\"enum\": [\"count\", \"count_distinct\", \"sum\", \"avg\", \"min\", \"max\"]}, \"column\": {\"type\": \"string\", \"minLength\": 1}, \"as\": {\"type\": \"string\", \"minLength\": 1}}}}}}}, {\"name\": \"dataset.sort\", \"description\": \"Derive a handle to the rows in a given order.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"by\"], \"properties\": {\"by\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"column\"], \"properties\": {\"column\": {\"type\": \"string\", \"minLength\": 1}, \"descending\": {\"type\": \"boolean\", \"default\": false}}}}}}}, {\"name\": \"dataset.limit\", \"description\": \"Derive a handle to the first `n` rows.\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"n\"], \"properties\": {\"n\": {\"type\": \"integer\", \"minimum\": 1}}}}, {\"name\": \"dataset.join\", \"description\": \"Derive a handle to the join of this dataset (left) with a second dataset handle (right).\", \"returns\": \"handle\", \"input_schema\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"right\", \"on\"], \"properties\": {\"right\": {\"type\": \"object\", \"required\": [\"$handle\"], \"additionalProperties\": false, \"properties\": {\"$handle\": {\"type\": \"string\"}}}, \"on\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"left\", \"right\"], \"properties\": {\"left\": {\"type\": \"string\", \"minLength\": 1}, \"right\": {\"type\": \"string\", \"minLength\": 1}}}}, \"how\": {\"enum\": [\"inner\", \"left\"], \"default\": \"inner\"}}}}]}"
+  },
+  {
+   "role": "assistant",
+   "content": "Now I understand both schemas. Let me join the events (filtered to 'purchase') with customers on customer_id, then aggregate revenue by country. I'll filter purchases and join in parallel.\n\n",
+   "tool_calls": [
+    {
+     "id": "NmGzAmFzsu3BP39VzhxYHco2TolkV2uN",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DABJR9WGQ942JNS49CARVH",
+       "capability": "dataset.filter",
+       "input": {
+        "where": [
+         {
+          "column": "event_type",
+          "op": "eq",
+          "value": "purchase"
+         }
+        ]
+       }
+      }
+     }
+    },
+    {
+     "id": "Y7LZ3MvdAaEcbKL6a4kv93S1ZAd1DSLW",
+     "function": {
+      "index": 1,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DA5GDXZ59KQKP6ZHFC45GP",
+       "capability": "dataset.head",
+       "input": {
+        "n": 10
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DAE0HDXS0HVGF9BZFBTGEJ\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"output\": {\"columns\": [\"customer_id\", \"country\"], \"rows\": [[0, \"US\"], [1, \"JP\"], [2, \"IN\"], [3, \"MX\"], [4, \"IN\"], [5, \"CA\"], [6, \"US\"], [7, \"DE\"], [8, \"MX\"], [9, \"US\"]], \"truncated\": false}}"
+  },
+  {
+   "role": "assistant",
+   "content": "Now let me join the filtered purchases with customers on customer_id, then aggregate the sum of amount by country.\n\n",
+   "tool_calls": [
+    {
+     "id": "ChaXzsDTI8kvCnn2aR64xp53tIZ5ypU8",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DAE0HDXS0HVGF9BZFBTGEJ",
+       "capability": "dataset.join",
+       "input": {
+        "on": [
+         {
+          "left": "customer_id",
+          "right": "customer_id"
+         }
+        ],
+        "right": {
+         "$handle": "hdl_01M7DA5GDXZ59KQKP6ZHFC45GP"
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DAE5JYSA5X1ZKCGF5TC0N3\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"id\", \"type\": \"BIGINT\"}, {\"name\": \"customer_id\", \"type\": \"BIGINT\"}, {\"name\": \"event_type\", \"type\": \"VARCHAR\"}, {\"name\": \"amount\", \"type\": \"DOUBLE\"}, {\"name\": \"country\", \"type\": \"VARCHAR\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "Now let me aggregate the sum of amount by country and sort descending.\n\n",
+   "tool_calls": [
+    {
+     "id": "p7r1XPH6gPZfkSXdhCDZaH2TrXG8Pv3l",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DAE5JYSA5X1ZKCGF5TC0N3",
+       "capability": "dataset.aggregate",
+       "input": {
+        "group_by": [
+         "country"
+        ],
+        "metrics": [
+         {
+          "as": "revenue",
+          "column": "amount",
+          "fn": "sum"
+         }
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DAE9YG1J492KX35HQCMY10\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"country\", \"type\": \"VARCHAR\"}, {\"name\": \"revenue\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "6mOaHzBFsQtYw4e3sMIPFGKmilwddYId",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DAE9YG1J492KX35HQCMY10",
+       "capability": "dataset.sort",
+       "input": {
+        "by": [
+         {
+          "column": "revenue",
+          "descending": true
+         }
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DAED7G40GPW4D9AEM2TAG2\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"country\", \"type\": \"VARCHAR\"}, {\"name\": \"revenue\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "BzJyZGm9yyrSt7G78yd9HW9oGOkvTLrS",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DAED7G40GPW4D9AEM2TAG2",
+       "capability": "dataset.limit",
+       "input": {
+        "n": 3
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"handle\": {\"id\": \"hdl_01M7DAEFWHWCSMFGQB1RT9FN3Y\", \"kind\": \"computation\", \"type\": \"dataset\", \"schema\": {\"columns\": [{\"name\": \"country\", \"type\": \"VARCHAR\"}, {\"name\": \"revenue\", \"type\": \"DOUBLE\"}]}}}"
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "id": "IylYhdVCjw1LsCO3Qx6wzqoAcY7kvg9r",
+     "function": {
+      "index": 0,
+      "name": "handle_invoke",
+      "arguments": {
+       "handle": "hdl_01M7DAEFWHWCSMFGQB1RT9FN3Y",
+       "capability": "dataset.head",
+       "input": {
+        "n": 10
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "tool_name": "handle_invoke",
+   "content": "{\"output\": {\"columns\": [\"country\", \"revenue\"], \"rows\": [[\"BR\", 480478088.8000008], [\"MX\", 477718993.2099997], [\"US\", 477524682.4999927]], \"truncated\": false}}"
+  },
+  {
+   "role": "assistant",
+   "content": "The 3 countries with the most revenue from 'purchase' events, largest first, are:\n\n1. **BR** (Brazil) \u2014 480,478,088.80\n2. **MX** (Mexico) \u2014 477,718,993.21\n3. **US** (United States) \u2014 477,524,682.50\n\nThe 3 country codes are **BR, MX, US**."
+  }
+ ]
+}

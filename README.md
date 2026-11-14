@@ -28,6 +28,37 @@ The dataset grows 10,000 times. The bytes that go to the caller grow by 9.
 "Protocol bytes" is the JSON size of everything that the runtime returns for the question: five
 operation results and four handle summaries. One machine, one run for each size, DuckDB 2.0.0.
 
+### With a language model
+
+A 9B-parameter local model (`ornith-1.5:9b` on Ollama, one GTX 1080, context window 8,192 tokens)
+gets two tools and two handle ids. It never gets a file. Full method, all runs, and every
+message: [`benchmarks/AGENT_RESULTS.md`](benchmarks/AGENT_RESULTS.md).
+
+Peak prompt tokens in one conversation:
+
+| Question | Operations needed | 10,000 rows | 1,000,000 rows | 100,000,000 rows |
+|---|---:|---:|---:|---:|
+| Count the rows | 1 | 1,988 | 1,998 | 2,030 |
+| Count the rows that pass a filter | 2 | 2,202 | 2,212 | 2,240 |
+| Group, sum, and find the largest group | 4 | 3,827 | 3,924 | 2,862 |
+| Join two datasets, filter, group, sum, top 3 | 5 | 4,802 | 5,015 | 4,569 |
+
+The model gave the correct answer in 12 of 12 runs. The check is one direct SQL statement.
+The prompt grows with the question. It does not grow with the dataset. The rows of the smallest
+dataset as JSON would cost about 353,667 tokens (35.4 tokens for each row, measured), which is 43
+times the context window.
+
+Two runs had failed tool calls, and the model recovered in both from the typed errors:
+
+- One run (join, 1,000,000 rows) dropped one character from a 26-character handle id three times
+  (`HANDLE_NOT_FOUND`), then sent the correct id.
+- One run (group, 100,000,000 rows) made no `handle_describe` call. It guessed the capability
+  names and inputs, got 9 errors (`CAPABILITY_NOT_FOUND`, `INVALID_INPUT`), and corrected each
+  call from the error details. That is why its prompt is smaller than the other two in its row.
+
+One run for each cell, temperature 0. A `handle_describe` result costs about 1,230 tokens, which is
+the largest single part of each prompt.
+
 ## Example
 
 ```python
@@ -101,12 +132,14 @@ python3 -m venv .venv
 .venv/bin/python -m pytest tests/conformance/test_acceptance.py -q
 .venv/bin/python tests/mutation_check.py
 .venv/bin/python benchmarks/context_efficiency.py 10000000
+OLLAMA_URL=http://localhost:11434 OLLAMA_MODEL=ornith-1.5:9b .venv/bin/python benchmarks/agent_context.py 1000000
 ```
 
 - The acceptance tests have one test for each row of the acceptance table in the design document.
 - The mutation check removes 20 guards from the source, one at a time, and confirms that a test
   fails for each.
 - The benchmark argument is the largest row count. `100000000` needs about 11 GB of free disk.
+- The agent benchmark needs an Ollama server and a model that supports tool calls.
 
 ## Layout
 
@@ -116,6 +149,7 @@ packages/core/        ids, errors, schema validation, graph ordering
 packages/runtime/     runtime, registry, adapter contract
 packages/adapters/    memory, filesystem, duckdb
 packages/sdk/         Python client
+packages/protocols/   the two-tool surface for a language model
 tests/conformance/    acceptance tests
 benchmarks/           context-efficiency benchmark and results
 ```
