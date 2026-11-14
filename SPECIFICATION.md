@@ -248,7 +248,7 @@ for an id that does not exist.
 | A failed or waiting node blocks only the nodes after it | A waiting action must not stop a simulation branch that does not depend on it. |
 | `execution.deterministic` on a capability | A recorded window of a live source never changes, but the version of the source does. Without this flag, a graph would record the window again on each run. |
 | Streams use `execution.mode` `stream` and `operation.subscribe` | The schema reserved the mode. A stream is many bounded values, so it is not one OperationResult. |
-| `handle.describe` with `detail` `brief` and `capability` | One full description of a dataset handle cost a 9B model about 1,230 prompt tokens (`benchmarks/AGENT_RESULTS.md`, v0.2). Most calls need the schema of one capability. |
+| `handle.describe` with `detail` `brief` and `capability` | One full description of a dataset handle cost a 9B model about 1,230 prompt tokens (the v0.2 run, `benchmarks/describe_comparison/dataset_full_describe.json`; `benchmarks/DESCRIBE_COMPARISON.md`). Most calls need the schema of one capability. |
 
 ## 13. Not in the reference runtime yet
 

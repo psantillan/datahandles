@@ -122,6 +122,8 @@ Graphs:
 - An approved action runs with the grants of the principal that runs the graph. The approver does
   not lend its grants.
 - An action that fails after it started uses its approval. A new approval is needed for a new try.
+- The output of `graph.run` has the default size limit (65,536 bytes). A graph with many large
+  value nodes fails with `RESULT_TOO_LARGE`.
 - A stream runs only on a handle in the runtime process, not on a remote worker.
 - The room adapter is a simulation. Its physics numbers are assumed, not measured.
 

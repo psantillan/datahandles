@@ -29,6 +29,10 @@ test that can fail is not done.
   change to `packages/core/` or `packages/runtime/`.
 - An adapter whose calls can take long must honour a cancel (`SPECIFICATION.md` section 18), and
   must say in `lock_key` which calls can run at the same time.
+- An adapter must change the version of a resource when its state changes, because a graph reuses
+  a result by version. A capability whose output does not depend on the version declares
+  `execution.deterministic`. A live source sets `consistency = "continuous"` and gives events
+  through `stream` (`SPECIFICATION.md` section 18).
 - A capability that returns a value must have an output size limit.
 - An adapter must not run query text from a caller.
 - Each numeric limit needs a stated origin: a specification, a measurement, or the word ASSUMED.
