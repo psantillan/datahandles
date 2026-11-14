@@ -65,6 +65,9 @@ class Registry:
             " AND json_extract(descriptor, '$.name') = ? ORDER BY id DESC", (name,))
         return [r[0] for r in rows]
 
+    def live_ids(self) -> list[str]:
+        return [r[0] for r in self.db.execute("SELECT id FROM handles WHERE released_at IS NULL")]
+
     def mark_released(self, handle_id: str, at: str) -> None:
         self.db.execute("UPDATE handles SET released_at = ? WHERE id = ?", (at, handle_id))
 

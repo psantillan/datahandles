@@ -163,6 +163,12 @@ optional `details` for recovery (for example the capability names that the calle
 | `GRAPH_CYCLE` | The submitted graph has a cycle. |
 | `ADAPTER_ERROR` | The adapter had a fault. The runtime continues. |
 
+A `HANDLE_NOT_FOUND` error MAY carry `details.did_you_mean`: a list of handle ids that the caller
+probably means (the given text contains the id, or differs from it by a small number of
+characters). The list MUST contain only live handles that the principal holds a capability on.
+The error for a handle that the principal cannot use MUST therefore stay the same as the error
+for an id that does not exist.
+
 ## 12. Decisions that add to the design document
 
 | Decision | Reason |
@@ -175,6 +181,7 @@ optional `details` for recovery (for example the capability names that the calle
 | `limits.max_output_bytes` required for value capabilities | "Bounded output" must be a property that the runtime enforces, not a habit of each adapter. |
 | No-grant answer is `HANDLE_NOT_FOUND` | A principal must not learn which ids exist. |
 | `Handle.parents` | Lineage and grant inheritance both need the derivation edges. |
+| `details.did_you_mean` on `HANDLE_NOT_FOUND` | A 9B model dropped one character of a 26-character id and sent the wrong id three times before it recovered (`benchmarks/AGENT_RESULTS.md`). An opaque id gives a caller nothing to correct it from. |
 
 ## 13. Not in the v0.1 runtime yet
 

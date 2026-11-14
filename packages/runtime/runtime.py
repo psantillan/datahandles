@@ -9,11 +9,14 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from ..core import HandleError, check_input, new_id, topological_order, violations
+from ..core import HandleError, check_input, edit_distance, new_id, topological_order, violations
 from .adapter import Derived, ResourceAdapter, Value
 from .registry import Record, Registry
 
 ALL = "*"  # a grant on every capability of a handle
+# An id that is this many edits from the given text is offered as a correction. One dropped, added,
+# or changed character is 1 edit. Two swapped neighbors are 2 edits.
+NEAR = 2
 
 
 def _now() -> str:
@@ -64,11 +67,26 @@ class Runtime:
     def _released(self, rec: Record) -> bool:
         return rec.released_at is not None or any(self._released(self.registry.get(p)) for p in rec.parents)
 
+    def _not_found(self, principal: str, given, message: str) -> HandleError:
+        """Make a HANDLE_NOT_FOUND error. Offer the ids that the caller probably means.
+
+        A candidate is an id that the given text contains, or that is NEAR edits from it. Only a
+        live handle that the principal holds a capability on is offered, so the error tells a
+        principal nothing about a handle that it cannot use.
+        """
+        near = []
+        for handle_id in self.registry.live_ids() if isinstance(given, str) else ():
+            if handle_id in given or (abs(len(given) - len(handle_id)) <= NEAR and edit_distance(given, handle_id) <= NEAR):
+                rec = self.registry.get(handle_id)
+                if self._held(principal, rec) and not self._released(rec):
+                    near.append(handle_id)
+        return HandleError("HANDLE_NOT_FOUND", message, details={"did_you_mean": near} if near else None)
+
     def _resolve(self, principal: str, handle_id: str) -> Record:
         rec = self.registry.get(handle_id)
         # A principal with no grant gets the same answer as for an id that does not exist.
         if rec is None or not self._held(principal, rec):
-            raise HandleError("HANDLE_NOT_FOUND", f"no handle {handle_id}")
+            raise self._not_found(principal, handle_id, f"no handle {handle_id}")
         if self._released(rec):
             raise HandleError("HANDLE_RELEASED", f"handle {handle_id} or one of its parents was released")
         return rec
@@ -124,7 +142,7 @@ class Runtime:
             rec = self.registry.get(handle_id)
             if self._held(principal, rec):
                 return self._view(principal, rec)
-        raise HandleError("HANDLE_NOT_FOUND", f"no handle with the name {name!r}")
+        raise self._not_found(principal, name, f"no handle with the name {name!r}")
 
     def describe(self, principal: str, handle_id: str) -> dict:
         return self._view(principal, self._resolve(principal, handle_id))

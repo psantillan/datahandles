@@ -44,4 +44,6 @@ covers it and the mutation check passes.
   carries the full input schema of nine capabilities. A brief form (names and one line each, the
   schema of one capability on request) is not built.
 - A handle id is 26 opaque characters. In one of 12 agent runs the model dropped a character when
-  it copied an id (`benchmarks/AGENT_RESULTS.md`). The runtime has no short alias for a handle.
+  it copied an id (`benchmarks/AGENT_RESULTS.md`). The `HANDLE_NOT_FOUND` error now offers the near
+  id (`details.did_you_mean`). The runtime has no short alias for a handle. The search for a
+  near id reads every live handle id, on the error path only.
