@@ -14,8 +14,8 @@ dependencies = ["jsonschema>=4.18"]
 
 [project.optional-dependencies]
 duckdb = ["duckdb>=1.0"]
-mcp = ["mcp>=2"]
-dev = ["pytest>=8", "duckdb>=1.0", "mcp>=2"]
+mcp = ["mcp>=2.1"]
+dev = ["pytest>=8", "duckdb>=1.0", "mcp>=2.1"]
 
 # The repository tree follows ARCHITECTURE.md section 11. Python sees packages/ as `datahandles`.
 [tool.setuptools]

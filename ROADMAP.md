@@ -1,6 +1,6 @@
 # Roadmap
 
-The order follows `ARCHITECTURE.md` section 18. A row is "built" only when a test covers it and
+The v0.1 order follows `ARCHITECTURE.md` section 18. A row is "built" only when a test covers it and
 the mutation check passes.
 
 | Step | State | Evidence |

@@ -35,7 +35,7 @@ class Target:
     token: str | None = None
 
     def make(self, name: str, value):
-        """Create the fixture resource of the suite: a handle of the type `object` on a JSON value (SPECIFICATION.md section 14)."""
+        """Create the fixture resource of the suite: a handle of the type `object` on a JSON value (SPECIFICATION.md section 17)."""
         return self.paul.register(name, adapter="memory", source={"value": value}, worker=self.worker)
 
 

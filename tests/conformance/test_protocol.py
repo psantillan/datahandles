@@ -1,4 +1,4 @@
-"""The protocol conformance suite (SPECIFICATION.md section 14).
+"""The protocol conformance suite (SPECIFICATION.md section 17).
 
 Each test uses protocol methods only, through the client. It reads no state of an implementation.
 Each handle and each result must pass the JSON Schemas in spec/protocol. See conftest.py for the targets.
