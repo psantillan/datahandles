@@ -25,6 +25,14 @@ TOOLS = [
     }},
 ]
 
+# A caller that starts with no handle id needs one more tool. A caller that gets its ids in the prompt does not.
+FIND_TOOL = {"type": "function", "function": {
+    "name": "handle_find",
+    "description": "List the resource handles you can use. Give a name to get one handle. Start here when you have no handle id.",
+    "parameters": {"type": "object", "properties": {
+        "name": {"type": "string", "description": "The name of one resource, for example events. Leave it out to list all."}}},
+}}
+
 
 def _summary(info: dict) -> dict:
     out = {"id": info["id"], "kind": info["kind"], "type": info["type"]}
@@ -43,11 +51,14 @@ def dispatch(client: Client, name: str, arguments: dict) -> dict:
                 for c in info["capabilities"]]}
         if name == "handle_invoke":
             result = client.resolve(arguments["handle"]).call(arguments["capability"], arguments.get("input") or {})
-            if result["status"] != "completed":
+            if result["status"] == "failed":
                 return {"error": result["error"]}
             if "handles" in result:
                 return {"handle": _summary(result["handles"][0])}
             return {"output": result["output"]}
+        if name == "handle_find":
+            found = [client.resolve(arguments["name"])] if arguments.get("name") else client.handles()
+            return {"handles": [{"name": h.info["descriptor"]["name"], **_summary(h.info)} for h in found]}
         return {"error": {"code": "INVALID_INPUT", "message": f"no tool {name!r}", "retryable": False}}
     except HandleError as e:
         return {"error": e.to_dict()}
