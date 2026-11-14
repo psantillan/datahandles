@@ -1,5 +1,13 @@
-"""Computation graph helpers: order the nodes and reject a cycle."""
+"""Computation graph helpers: order the nodes, reject a cycle, and give a node its identity."""
+import hashlib
+import json
+
 from .errors import HandleError
+
+
+def digest(value) -> str:
+    """A stable SHA-256 digest of a JSON value: the identity of a graph node."""
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
 def topological_order(graph: dict) -> list[str]:

@@ -6,7 +6,6 @@ The caller of `execute` supplies the principal. A transport (HTTP, MCP) must aut
 Placement: a handle lives where its resource is. The adapter name `duckdb` is the adapter in this
 process. The name `duckdb@w1` is the same adapter on the registered remote worker `w1`.
 """
-import hashlib
 import json
 import os
 import threading
@@ -14,8 +13,9 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from ..core import HandleError, check_input, edit_distance, new_id, topological_order, violations
+from ..core import HandleError, check_input, digest as _key, edit_distance, new_id, topological_order, violations
 from .adapter import Call, Derived, Known, Locked, ResourceAdapter, ResourceRef, Value
+from .graphs import GraphAdapter, check as check_graph
 from .jobs import JobAdapter
 from .plugins import adapter_class
 from .registry import Record, Registry
@@ -34,11 +34,6 @@ def _is_handle_input(v) -> bool:
     return isinstance(v, dict) and set(v) == {"$handle"}
 
 
-def _key(value) -> str:
-    """A stable digest of a JSON value: the identity of a graph node."""
-    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-
-
 def _allows(held: set, capability: str) -> bool:
     return ALL in held or capability in held
 
@@ -53,6 +48,7 @@ class Runtime:
         self._lock = threading.RLock()  # the adapter table and job submission
         self._adapters = {a.name: Locked(a) for a in adapters}
         self._adapters["job"] = JobAdapter(self.registry, _now, self._cancel_running)
+        self._adapters["graph"] = GraphAdapter()
         self._job_threads = job_threads or os.cpu_count() or 1
         self._queue, self._threads = threading.Condition(), []
         self._calls: dict[str, Call] = {}  # job id -> the adapter call of its running attempt
@@ -277,7 +273,7 @@ class Runtime:
                 result["status"], result["handles"] = "running", [self._view(principal, derived, brief=True)]
                 size, version = 0, ""
             else:
-                out = self._call_adapter(rec, cap, input, execution.get("strategy") == "eager", call or Call())
+                out = self._call_adapter(principal, rec, cap, input, execution.get("strategy") == "eager", call or Call())
                 if isinstance(out, Known):  # job.result: the handle that the job made
                     made = self._resolve(principal, out.handle_id)
                     result["handles"] = [self._view(principal, made, brief=True)]
@@ -310,7 +306,7 @@ class Runtime:
         )
         return result
 
-    def _call_adapter(self, rec: Record, cap: dict, input: dict, eager: bool, call: Call):
+    def _call_adapter(self, principal: str, rec: Record, cap: dict, input: dict, eager: bool, call: Call):
         """Call the adapter. With `limits.timeout_ms` on the capability, stop waiting at that time.
 
         At the time limit the runtime cancels the call (see Call) and gives OPERATION_TIMEOUT at once.
@@ -320,6 +316,8 @@ class Runtime:
 
         def run():
             try:
+                if rec.adapter == "graph":  # the runtime does the capabilities of a graph (see graphs.py)
+                    return self._graph(principal, rec, cap["name"], input, call)
                 return adapter.invoke(rec.ref, cap["name"], input, eager=eager, call=call)
             except HandleError:
                 raise
@@ -349,6 +347,21 @@ class Runtime:
         if "error" in box:
             raise box["error"]
         return box["out"]
+
+    def _graph(self, principal: str, rec: Record, capability: str, input: dict, call: Call):
+        graph = rec.locator["graph"]
+        if capability == "graph.run":
+            return Value(self.run_graph(principal, graph, call), rec.version)
+        if capability == "graph.set":
+            node = next((n for n in graph["nodes"] if n["id"] == input["node"] and n["kind"] == "operation"), None)
+            if node is None:
+                raise HandleError("INVALID_INPUT", f"no operation node {input['node']!r} in this graph",
+                                  details={"nodes": [n["id"] for n in graph["nodes"] if n["kind"] == "operation"]})
+            edited = json.loads(json.dumps(graph))
+            next(n for n in edited["nodes"] if n["id"] == input["node"])["operation"]["input"] = input["input"]
+            ref = ResourceRef("graph", {"graph": check_graph(edited)}, _key(edited)[:16])
+            return Derived(ref, kind="result", consistency="snapshot")
+        raise HandleError("CAPABILITY_NOT_FOUND", capability)
 
     def _derive(self, principal: str, rec: Record, more_parents: list, operation: dict, out: Derived, adapter: str | None = None) -> Record:
         parents = [rec.id, *more_parents]

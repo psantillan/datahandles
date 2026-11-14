@@ -31,7 +31,7 @@ class Adapter(ResourceAdapter):
 
     def open(self, source: dict) -> ResourceRef:
         key = new_id("obj")
-        self._objects[key] = [source["value"], 1]
+        self._objects[key] = [copy.deepcopy(source["value"]), 1]  # a later write must not change the caller's value
         return ResourceRef("object", {"key": key, "path": []}, "1")
 
     def _slot(self, ref: ResourceRef) -> list:

@@ -1,8 +1,14 @@
 """Replayable graphs: each node has an identity, and an unchanged node gives its stored result again."""
 import copy
+import threading
+import time
+from collections import defaultdict
 
-from datahandles import Client, Runtime
-from datahandles.core import violations
+import pytest
+
+from datahandles import Client, HandleError, Runtime
+from datahandles.core import capability, violations
+from datahandles.runtime.adapter import ResourceAdapter, ResourceRef, Value
 
 VALUE = {"a": {"b": {"c": {"d": 1}, "x": {"d": 2}}}}
 
@@ -61,6 +67,7 @@ def test_a_new_version_of_the_source_runs_the_graph_again(tmp_path):
     graph = chain(root.id, STEPS)
     paul.submit(graph)
     root.invoke("object.set", {"path": ["a", "b", "c", "d"], "value": 5})
+    assert VALUE["a"]["b"]["c"]["d"] == 1  # a write changes the stored copy, not the value of the caller
     run = paul.submit(graph)
     assert run["results"]["op4"]["output"] == 5 and not run["results"]["op0"]["metadata"].get("reused")
 
@@ -74,3 +81,101 @@ def test_reuse_belongs_to_one_principal(tmp_path):
     paul.submit(graph)
     run = Client(runtime, "bob").submit(graph)
     assert not any(r["metadata"].get("reused") for r in run["results"].values())
+
+
+class Slow(ResourceAdapter):
+    """`slow.wait` waits until the test opens the gate of its resource, or until the call is cancelled."""
+    name = "slow"
+
+    def __init__(self, state_dir=None):
+        self.opened, self.entered, self.returned = (defaultdict(threading.Event) for _ in range(3))
+
+    def lock_key(self, ref):
+        return ref.locator["name"]
+
+    def open(self, source):
+        return ResourceRef("slow", {"name": source["name"]}, "1")
+
+    def describe(self, ref):
+        return {"description": "A slow resource."}
+
+    def discover(self, ref):
+        return [capability("slow.wait", "Wait for the gate.")]
+
+    def observe(self, ref):
+        return {"version": "1"}
+
+    def invoke(self, ref, capability, input, *, eager, call):
+        name = ref.locator["name"]
+        call.on_cancel(self.opened[name].set)
+        self.entered[name].set()
+        try:
+            assert self.opened[name].wait(10), "the test did not open the gate"
+            call.check()
+            return Value({"waited": name}, "1")
+        finally:
+            self.returned[name].set()
+
+
+def two_branches(tree: str, slow: str) -> dict:
+    """A fast node on a directory tree (it survives a restart), then a long node on a slow resource."""
+    return {"id": "g", "execution": {"strategy": "lazy", "consistency": "latest"},
+            "nodes": [{"id": "tree", "kind": "resource", "reference": tree},
+                      {"id": "fast", "kind": "operation", "operation": {"capability": "filesystem.list", "input": {}}},
+                      {"id": "slow", "kind": "resource", "reference": slow},
+                      {"id": "long", "kind": "operation", "operation": {"capability": "slow.wait", "input": {}}}],
+            "edges": [{"from": "tree", "to": "fast"}, {"from": "slow", "to": "long"}]}
+
+
+def lists(runtime) -> int:
+    return sum(1 for op in runtime.registry.history() if op["capability"] == "filesystem.list")
+
+
+def test_a_graph_is_a_handle_and_an_edit_derives_a_new_graph(tmp_path):
+    paul = Client(Runtime(tmp_path / "state"), "paul")
+    root = paul.register("config", adapter="memory", source={"value": VALUE})
+    g = paul.register("flow", adapter="graph", source={"graph": chain(root.id, STEPS)})
+    assert g.info["type"] == "graph" and [n["id"] for n in g.describe()["descriptor"]["schema"]["nodes"]][:2] == ["root", "op0"]
+    assert g.invoke("graph.run")["results"]["op4"]["output"] == 1
+    edited = g.invoke("graph.set", {"node": "op3", "input": {"path": ["x"]}})
+    assert edited.describe()["parents"] == [g.id] and edited.info["kind"] == "result"
+    out = edited.invoke("graph.run")
+    assert out["results"]["op4"]["output"] == 2 and out["results"]["op2"]["metadata"]["reused"]
+    assert g.invoke("graph.run")["results"]["op4"]["output"] == 1  # the first graph did not change
+
+
+def test_a_graph_with_a_long_node_runs_as_a_job_that_a_caller_can_cancel(tmp_path):
+    slow = Slow()
+    paul = Client(Runtime(tmp_path / "state", adapters=(slow,)), "paul")
+    tree = paul.register("tree", adapter="filesystem", source=str(tmp_path))
+    gate = paul.register("gate", adapter="slow", source={"name": "a"})
+    g = paul.register("flow", adapter="graph", source={"graph": two_branches(tree.id, gate.id)})
+    t0 = time.perf_counter()
+    job = g.invoke("graph.run", background=True)
+    assert time.perf_counter() - t0 < 1 and slow.entered["a"].wait(10)
+    assert job.invoke("job.status")["state"] == "running"
+    job.invoke("job.cancel")
+    assert slow.returned["a"].wait(5), "the cancel did not reach the node"
+    with pytest.raises(HandleError) as e:
+        job.wait(timeout=10)
+    assert e.value.code == "JOB_CANCELLED"
+
+
+def test_after_a_restart_a_graph_job_goes_on_and_a_finished_node_does_not_run_again(tmp_path):
+    slow = Slow()
+    paul = Client(Runtime(tmp_path / "state", adapters=(slow,)), "paul")
+    tree = paul.register("tree", adapter="filesystem", source=str(tmp_path))
+    gate = paul.register("gate", adapter="slow", source={"name": "a"})
+    g = paul.register("flow", adapter="graph", source={"graph": two_branches(tree.id, gate.id)})
+    job_id = g.invoke("graph.run", background=True).id
+    assert slow.entered["a"].wait(10)
+    assert lists(paul.runtime) == 1  # the fast node ran before the long node
+    # A new runtime on the same state directory is what a restart after a crash gives.
+    after = Slow()
+    runtime = Runtime(tmp_path / "state", adapters=(after,))
+    assert after.entered["a"].wait(10), "the graph job did not run again"
+    after.opened["a"].set()
+    out = Client(runtime, "paul").resolve(job_id).wait(timeout=10)
+    assert out["results"]["fast"]["metadata"]["reused"] and out["results"]["long"]["output"] == {"waited": "a"}
+    assert lists(runtime) == 1  # the fast node did not run again
+    slow.opened["a"].set()  # let the attempt of the stopped runtime end
