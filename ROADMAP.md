@@ -32,11 +32,37 @@ This is the v0.1 list of `ARCHITECTURE.md` section 14.
 | Temporal correctness | Pass for `latest` and `snapshot`. `continuous` is not built. |
 | Failure recovery | Pass: a failed operation is recorded and the runtime continues, a lost worker gives a typed error that a caller can retry, and a job that a restart interrupts runs again only if its capability is idempotent |
 
-## Not built (v0.2 and later)
+## v0.2: Any resource
 
-- Worker heartbeats, leases, and scheduling between workers. One handle is on one worker.
-- An event stream (SSE), `continuous` consistency, subscriptions.
-- `execution.priority`, `execution.deadline`, `limits.timeout_ms`, `lifecycle.expires_at`.
+Goal: show that a resource does not have to be a dataset. One handle, capability, grant, and job
+model must serve a git repository and a browser session with no special code for either kind.
+
+This order differs from `ARCHITECTURE.md` section 14. There, v0.2 is distributed and temporal
+execution, and stateful adapters come in v0.3. A PostgreSQL adapter would show again that the
+model works for data, and v0.1 shows that already. So the resource-independence work comes first.
+
+| Step | State | Done when |
+|---|---|---|
+| 1. A lock for each resource, not for each adapter | Not built | A long call on one resource does not delay a call on a second resource of the same adapter |
+| 2. More than one job thread | Not built | Two long jobs run at the same time |
+| 3. A cancel hook in the adapter interface | Not built | `job.cancel` on a running job stops the adapter call |
+| 4. `limits.timeout_ms` | Not built | An adapter call that does not end in time ends with a typed error and releases its lock |
+| 5. Adapters outside the package | Not built | An adapter from a separate installed package registers and runs with no change to `datahandles` |
+| 6. Git adapter | Not built | Log, diff, and file reads of a repository through handles, grants, and derived handles |
+| 7. Browser-session adapter | Not built | A session handle with long, non-idempotent jobs. Cancel and timeout work on them |
+| 8. Acceptance: one agent task on two kinds of resource | Not built | An agent completes one task through the MCP server with a git handle and a browser handle |
+
+Steps 1 and 2 change only the runtime. Steps 3 and 4 change the adapter interface.
+
+## v0.3 and later
+
+- Worker discovery, heartbeats, leases, and scheduling between workers. One handle is on one worker.
+- An event stream (SSE), `continuous` consistency, and subscriptions. A sensor-stream adapter needs these.
+- Checkpoint and resume of a job.
+- A PostgreSQL adapter.
+- `execution.priority`, `execution.deadline`, `lifecycle.expires_at`.
+- Agent-as-resource, capability delegation, cross-runtime references, a TypeScript SDK
+  (`ARCHITECTURE.md` section 14, v0.3).
 - A second implementation of the protocol.
 - A brief form of `handle.describe` (see the limits below).
 

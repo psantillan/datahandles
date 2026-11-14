@@ -158,7 +158,7 @@ The server uses stdio and needs the `mcp` package (`pip install -e ".[mcp]"`).
 Version 0.1. Built: the protocol schemas, the runtime, three adapters, composition and graphs,
 the registry, async jobs, the remote worker, the HTTP transport, the MCP adapter, a Python
 client, and a conformance suite. This is the full v0.1 list of the design document.
-[`ROADMAP.md`](ROADMAP.md) has the table with the evidence for each part, what is not built, and
+[`ROADMAP.md`](ROADMAP.md) has the table with the evidence for each part, the v0.2 plan, and
 the limits of the current code.
 
 ## Documents

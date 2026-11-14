@@ -2,6 +2,8 @@
 
 > This file is the design document that started the project, as written.
 > `SPECIFICATION.md` is the normative protocol text. Where the two differ, `SPECIFICATION.md` governs.
+> The release plan in section 14 changed after v0.1: v0.2 is now "Any resource" (stateful,
+> non-dataset adapters), and the distributed and temporal items moved later. `ROADMAP.md` has the current plan.
 
 Architecture direction established
 
