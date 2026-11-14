@@ -622,9 +622,11 @@ class Runtime:
                 keys[nid] = _key({"capability": node["operation"]["capability"], "input": node["operation"]["input"], "eager": eager,
                                   "sources": sorted([e.get("input_name", ""), keys[e["from"]]] for e in sources)})
                 try:
-                    cap = self._capability(principal, self._resolve(principal, targets[0]), node["operation"]["capability"])
+                    # From the interface, not from the grants: an action that the caller may not run still waits for an approval.
+                    target = self._resolve(principal, targets[0])
+                    cap = next(c for c in self.adapter(target.adapter).discover(target.ref) if c["name"] == node["operation"]["capability"])
                     action, deterministic = is_action(cap), cap["execution"].get("deterministic", False)
-                except HandleError:
+                except (HandleError, StopIteration):
                     action = deterministic = False  # the run below gives the error
                 if deterministic:  # the version of a resource it reads directly does not change the output
                     keys[nid] = _key({"deterministic": True, "capability": node["operation"]["capability"], "input": node["operation"]["input"],

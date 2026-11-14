@@ -24,7 +24,11 @@ def violations(kind: str, obj) -> list[str]:
 
 
 def check_input(schema: dict, value: dict) -> None:
-    """Validate an operation input against the input_schema of its capability."""
+    """Validate an operation input against the input_schema of its capability.
+
+    The error carries the schema (details.input_schema), so a caller that guessed the input shape can
+    correct it in one step. A caller that described the handle in brief form never saw the schema.
+    """
     errors = [f"{'/'.join(map(str, e.path)) or '.'}: {e.message}" for e in Draft202012Validator(schema).iter_errors(value)]
     if errors:
-        raise HandleError("INVALID_INPUT", errors[0], details={"violations": errors})
+        raise HandleError("INVALID_INPUT", errors[0], details={"violations": errors, "input_schema": schema})
