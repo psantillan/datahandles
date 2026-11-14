@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS jobs (
   seq INTEGER PRIMARY KEY, id TEXT UNIQUE NOT NULL, handle_id TEXT NOT NULL, principal TEXT NOT NULL,
   operation TEXT NOT NULL, capability TEXT NOT NULL, state TEXT NOT NULL, attempts INTEGER NOT NULL,
   cancel INTEGER NOT NULL, submitted_at TEXT NOT NULL, started_at TEXT, finished_at TEXT, result TEXT);
+CREATE TABLE IF NOT EXISTS node_runs (
+  principal TEXT NOT NULL, key TEXT NOT NULL, result TEXT NOT NULL, at TEXT NOT NULL,
+  PRIMARY KEY (principal, key));
 CREATE TABLE IF NOT EXISTS workers (
   id TEXT PRIMARY KEY, url TEXT NOT NULL, key TEXT NOT NULL, info TEXT NOT NULL, registered_at TEXT NOT NULL);
 """
@@ -178,6 +181,16 @@ class Registry:
         with self._lock:
             self._all("UPDATE jobs SET state = 'cancelled', finished_at = ? WHERE id = ? AND state = 'queued'", (at, job_id))
             self._all("UPDATE jobs SET cancel = 1 WHERE id = ? AND state = 'running'", (job_id,))
+
+    # ---- graph nodes --------------------------------------------------------------------------
+
+    def node_run(self, principal: str, key: str) -> dict | None:
+        """The OperationResult of the last completed run of a graph node with this key, for this principal."""
+        rows = self._all("SELECT result FROM node_runs WHERE principal = ? AND key = ?", (principal, key))
+        return json.loads(rows[0][0]) if rows else None
+
+    def put_node_run(self, principal: str, key: str, result: dict, at: str) -> None:
+        self._all("INSERT OR REPLACE INTO node_runs VALUES (?, ?, ?, ?)", (principal, key, json.dumps(result), at))
 
     # ---- workers ------------------------------------------------------------------------------
 

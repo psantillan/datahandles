@@ -22,7 +22,7 @@
         "failed",
         "cancelled"
       ],
-      "description": "completed and failed are final. running: the operation is a job, and `handles` holds the job handle. waiting and cancelled are reserved."
+      "description": "completed and failed are final. running: the operation is a job, and `handles` holds the job handle. waiting: a graph node that changes the world waits for an approval. cancelled is reserved."
     },
     "output": {},
     "handles": {
@@ -49,6 +49,10 @@
         "source_version": {
           "type": "string",
           "description": "The resource version that the operation observed."
+        },
+        "reused": {
+          "type": "boolean",
+          "description": "A graph run gave the stored result of an equal node and did not run the operation again."
         }
       }
     }

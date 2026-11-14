@@ -6,6 +6,7 @@ The caller of `execute` supplies the principal. A transport (HTTP, MCP) must aut
 Placement: a handle lives where its resource is. The adapter name `duckdb` is the adapter in this
 process. The name `duckdb@w1` is the same adapter on the registered remote worker `w1`.
 """
+import hashlib
 import json
 import os
 import threading
@@ -31,6 +32,11 @@ def _now() -> str:
 
 def _is_handle_input(v) -> bool:
     return isinstance(v, dict) and set(v) == {"$handle"}
+
+
+def _key(value) -> str:
+    """A stable digest of a JSON value: the identity of a graph node."""
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
 def _allows(held: set, capability: str) -> bool:
@@ -477,22 +483,38 @@ class Runtime:
         return {"id": new_id("gr"), "nodes": nodes, "edges": edges, "execution": {"strategy": "lazy", "consistency": consistency}}
 
     def submit(self, principal: str, graph: dict) -> dict:
-        """Run a computation graph in dependency order. Each operation goes through `execute`.
+        """Run a computation graph in dependency order (see run_graph)."""
+        return self.run_graph(principal, graph)
+
+    def _held_live(self, principal: str, handle_id: str) -> bool:
+        rec = self.registry.get(handle_id)
+        return rec is not None and bool(self._held(principal, rec)) and not self._released(rec)
+
+    def run_graph(self, principal: str, graph: dict, call: Call | None = None) -> dict:
+        """Run a computation graph in dependency order. Reuse the result of each node that did not change.
+
+        Each node gets a key. A resource node: its handle id and its version now. An operation node:
+        the capability, the plain input, eager or lazy, and the keys of the nodes it takes. If this
+        principal ran an equal node before, and its output handle is still live, the stored result is
+        the result again (metadata.reused true) and the operation does not run.
 
         Return {"results": {operation node id: OperationResult}, "handles": {node id: handle id}}.
-        The run stops at the first operation that fails.
+        The run stops at the first operation that fails. A cancel of `call` stops it before the next node.
         """
         bad = violations("graphs", graph)
         if bad:
             raise HandleError("INVALID_INPUT", bad[0], details={"violations": bad})
         nodes = {n["id"]: n for n in graph["nodes"]}
         incoming = {i: [e for e in graph["edges"] if e["to"] == i] for i in nodes}
-        bound, results = {}, {}
+        bound, results, keys = {}, {}, {}
         for nid in topological_order(graph):
             node, sources = nodes[nid], incoming[nid]
             if node["kind"] == "resource":
                 bound[nid] = node["reference"]
+                keys[nid] = _key({"handle": node["reference"], "version": self.observe(principal, node["reference"])["version"]})
             elif node["kind"] == "operation":
+                if call is not None:
+                    call.check()
                 targets = [bound[e["from"]] for e in sources if "input_name" not in e]
                 if len(targets) != 1:
                     raise HandleError("INVALID_INPUT", f"operation node {nid} needs exactly one target edge")
@@ -500,9 +522,18 @@ class Runtime:
                 input.update({e["input_name"]: {"$handle": bound[e["from"]]} for e in sources if "input_name" in e})
                 stored = any(nodes[e["to"]]["kind"] == "materialized" for e in graph["edges"] if e["from"] == nid)
                 eager = stored or graph["execution"]["strategy"] == "eager"
-                results[nid] = r = self.execute(principal, {
-                    "id": new_id("op"), "target": targets[0], "capability": node["operation"]["capability"], "input": input,
-                    "execution": {"mode": "auto", "strategy": "eager" if eager else "lazy"}})
+                keys[nid] = _key({"capability": node["operation"]["capability"], "input": node["operation"]["input"], "eager": eager,
+                                  "sources": sorted([e.get("input_name", ""), keys[e["from"]]] for e in sources)})
+                before = self.registry.node_run(principal, keys[nid])
+                if before and all(self._held_live(principal, h["id"]) for h in before.get("handles", [])):
+                    r = {**before, "metadata": {**before["metadata"], "reused": True}}
+                else:
+                    r = self._perform(principal, {
+                        "id": new_id("op"), "target": targets[0], "capability": node["operation"]["capability"], "input": input,
+                        "execution": {"mode": "auto", "strategy": "eager" if eager else "lazy"}}, queue=False, call=call)
+                    if r["status"] == "completed":
+                        self.registry.put_node_run(principal, keys[nid], r, _now())
+                results[nid] = r
                 if r["status"] != "completed":
                     break
                 if "handles" in r:
@@ -510,5 +541,5 @@ class Runtime:
             else:  # derived or materialized: the output of the one operation before it
                 if len(sources) != 1 or sources[0]["from"] not in bound:
                     raise HandleError("INVALID_INPUT", f"node {nid} must follow one operation that returns a handle")
-                bound[nid] = bound[sources[0]["from"]]
+                bound[nid], keys[nid] = bound[sources[0]["from"]], keys[sources[0]["from"]]
         return {"results": results, "handles": bound}

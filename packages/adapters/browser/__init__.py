@@ -122,8 +122,10 @@ class Adapter(ResourceAdapter):
         return _caps(ref.locator["timeout_ms"])
 
     def observe(self, ref: ResourceRef) -> dict:
+        # A live page can change with no action of this session, so it has no stable version. A new
+        # version on each observe means a graph never reuses a result that came from the page.
         page = self._page(ref)
-        return {"version": page.url, "url": page.url}
+        return {"version": new_id("v"), "url": page.url}
 
     def release(self, ref: ResourceRef, kind: str) -> None:
         page = self._pages.pop(ref.locator["session"], None)
