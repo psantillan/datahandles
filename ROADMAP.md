@@ -74,7 +74,7 @@ for long simulations, sensor streams, and actions in the physical world.
 
 Steps 1 to 3 change only the runtime and the graph schema. Step 7 changes the protocol.
 
-## After v0.3 (built, not released)
+## v0.3.1: An HTTP API adapter (built)
 
 | Item | Evidence |
 |---|---|
