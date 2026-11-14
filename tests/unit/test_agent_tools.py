@@ -1,0 +1,31 @@
+"""The two-tool surface gives a caller that is not Python code the same protocol behavior."""
+import json
+
+from datahandles import Client, Runtime
+from datahandles.protocols.tools import TOOLS, dispatch
+
+
+def test_a_tool_caller_can_discover_compose_and_recover(tmp_path):
+    owner = Client(Runtime(tmp_path), "owner")
+    config = owner.register("config", adapter="memory", source={"value": {"users": [{"name": "ana"}, {"name": "raj"}]}})
+    config.grant("agent", ["object.select", "object.get"])
+    agent = Client(owner.runtime, "agent")
+    assert [t["function"]["name"] for t in TOOLS] == ["handle_describe", "handle_invoke"]
+
+    described = dispatch(agent, "handle_describe", {"handle": config.id})
+    assert [c["name"] for c in described["capabilities"]] == ["object.get", "object.select"]  # only what the agent holds
+    assert "input_schema" in described["capabilities"][0] and "ana" not in json.dumps(described)
+
+    users = dispatch(agent, "handle_invoke", {"handle": config.id, "capability": "object.select", "input": {"path": ["users"]}})
+    assert set(users) == {"handle"} and users["handle"]["kind"] == "computation"
+    assert "capabilities" not in users["handle"]  # a derived handle comes back as a short summary
+    got = dispatch(agent, "handle_invoke", {"handle": users["handle"]["id"], "capability": "object.get", "input": {"path": [1, "name"]}})
+    assert got == {"output": "raj"}
+
+    # Each failure is a typed value that the caller can act on. None is an exception.
+    denied = dispatch(agent, "handle_invoke", {"handle": config.id, "capability": "object.set", "input": {"path": ["x"], "value": 1}})
+    assert denied["error"]["code"] == "CAPABILITY_DENIED" and denied["error"]["details"]["permitted"] == ["object.get", "object.select"]
+    assert dispatch(agent, "handle_invoke", {"handle": config.id, "capability": "object.get", "input": {"nope": 1}})["error"]["code"] == "INVALID_INPUT"
+    assert dispatch(agent, "handle_invoke", {"handle": "hdl_" + "0" * 26, "capability": "object.get"})["error"]["code"] == "HANDLE_NOT_FOUND"
+    assert dispatch(agent, "handle_invoke", {"handle": 7, "capability": "object.get"})["error"]["code"] == "INVALID_INPUT"
+    assert dispatch(agent, "handle_delete", {})["error"]["code"] == "INVALID_INPUT"
