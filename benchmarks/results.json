@@ -1,0 +1,42 @@
+[
+  {
+    "rows": 10000,
+    "parquet_bytes": 139982,
+    "export_bytes": 877653,
+    "protocol_bytes": 3730,
+    "answer_bytes": 147,
+    "seconds": 0.073
+  },
+  {
+    "rows": 100000,
+    "parquet_bytes": 1200186,
+    "export_bytes": 8879634,
+    "protocol_bytes": 3731,
+    "answer_bytes": 147,
+    "seconds": 0.067
+  },
+  {
+    "rows": 1000000,
+    "parquet_bytes": 11789714,
+    "export_bytes": 89794093,
+    "protocol_bytes": 3732,
+    "answer_bytes": 146,
+    "seconds": 0.106
+  },
+  {
+    "rows": 10000000,
+    "parquet_bytes": 117633508,
+    "export_bytes": 907936490,
+    "protocol_bytes": 3734,
+    "answer_bytes": 147,
+    "seconds": 0.149
+  },
+  {
+    "rows": 100000000,
+    "parquet_bytes": 1175660937,
+    "export_bytes": 9179443674,
+    "protocol_bytes": 3739,
+    "answer_bytes": 146,
+    "seconds": 1.681
+  }
+]
