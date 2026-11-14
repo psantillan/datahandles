@@ -21,7 +21,8 @@
         "waiting",
         "failed",
         "cancelled"
-      ]
+      ],
+      "description": "completed and failed are final. running: the operation is a job, and `handles` holds the job handle. waiting and cancelled are reserved."
     },
     "output": {},
     "handles": {
@@ -29,7 +30,7 @@
       "items": {
         "$ref": "#/$defs/HandleSummary"
       },
-      "description": "The handles that the operation derived."
+      "description": "The handles that the operation derived. For the status running: the one job handle."
     },
     "error": {
       "$ref": "urn:datahandles:spec:0.1:errors.schema.json"

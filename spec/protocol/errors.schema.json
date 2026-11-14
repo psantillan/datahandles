@@ -19,7 +19,11 @@
         "INVALID_INPUT",
         "RESULT_TOO_LARGE",
         "GRAPH_CYCLE",
-        "ADAPTER_ERROR"
+        "ADAPTER_ERROR",
+        "WORKER_UNAVAILABLE",
+        "JOB_NOT_FINISHED",
+        "JOB_CANCELLED",
+        "JOB_INTERRUPTED"
       ]
     },
     "message": {

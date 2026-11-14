@@ -2,15 +2,20 @@
 
 Check order (ARCHITECTURE.md section 9.1): principal -> handle -> grant -> capability -> input schema -> dispatch -> record.
 The caller of `execute` supplies the principal. A transport (HTTP, MCP) must authenticate it first.
+
+Placement: a handle lives where its resource is. The adapter name `duckdb` is the adapter in this
+process. The name `duckdb@w1` is the same adapter on the registered remote worker `w1`.
 """
-import importlib
+import importlib.util
 import json
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 from ..core import HandleError, check_input, edit_distance, new_id, topological_order, violations
-from .adapter import Derived, ResourceAdapter, Value
+from .adapter import Derived, Known, ResourceAdapter, ResourceRef, Serial, Value
+from .jobs import JobAdapter
 from .registry import Record, Registry
 
 ALL = "*"  # a grant on every capability of a handle
@@ -37,15 +42,44 @@ class Runtime:
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.registry = Registry(self.state_dir / "registry.sqlite")
         self.registry.drop_ephemeral()
-        self._adapters = {a.name: a for a in adapters}
+        self._lock = threading.RLock()  # the adapter table, the job thread, and job submission
+        self._adapters = {a.name: Serial(a) for a in adapters}
+        self._adapters["job"] = JobAdapter(self.registry, _now)
+        self._wake, self._thread = threading.Event(), None
+        self._recover()
 
     def adapter(self, name: str) -> ResourceAdapter:
-        """Return an adapter. A name that is not loaded yet is a module in datahandles.adapters."""
-        if name not in self._adapters:
-            if not name.isidentifier():
-                raise ValueError(f"bad adapter name: {name!r}")
-            self._adapters[name] = importlib.import_module(f"datahandles.adapters.{name}").Adapter(self.state_dir)
-        return self._adapters[name]
+        """Return an adapter. A name that is not loaded yet is a module in datahandles.adapters, here or on a worker."""
+        with self._lock:
+            if name not in self._adapters:
+                kind, _, worker_id = name.partition("@")
+                if not kind.isidentifier() or (not worker_id and importlib.util.find_spec(f"datahandles.adapters.{kind}") is None):
+                    raise HandleError("INVALID_INPUT", f"no adapter {kind!r}")
+                if worker_id:
+                    worker = self.registry.worker(worker_id)
+                    if worker is None:
+                        raise HandleError("WORKER_UNAVAILABLE", f"no worker {worker_id!r} is registered")
+                    from ..workers.remote import RemoteAdapter  # not at the top: the worker module is also a program
+                    self._adapters[name] = RemoteAdapter(kind, worker)
+                else:
+                    self._adapters[name] = Serial(importlib.import_module(f"datahandles.adapters.{kind}").Adapter(self.state_dir))
+            return self._adapters[name]
+
+    def add_worker(self, worker_id: str, url: str, key: str) -> dict:
+        """Register a remote worker and return what it reports: its adapters and its machine resources.
+
+        This is an operator action. No transport gives it to a principal. The registry file holds the
+        key, so the state directory must stay private.
+        """
+        if not worker_id.isidentifier():
+            raise ValueError(f"bad worker id: {worker_id!r}")
+        from ..workers.remote import call
+        info = call(url, key, {"method": "info"})
+        with self._lock:
+            self.registry.put_worker(worker_id, url, key, info, _now())
+            for name in [n for n in self._adapters if n.endswith("@" + worker_id)]:
+                del self._adapters[name]
+        return info
 
     # ---- policy -------------------------------------------------------------------------------
 
@@ -53,10 +87,11 @@ class Runtime:
         """The capabilities that a principal holds on a handle.
 
         A grant sits on one handle. A derived handle also gives what the principal holds on ALL of
-        its parents, so a derivation never gives more authority than its inputs.
+        its parents, so a derivation never gives more authority than its inputs. A job handle is the
+        exception: it belongs to its submitter, and nothing on it comes from the parents.
         """
         held = self.registry.grants(principal, rec.id)
-        if rec.parents:
+        if rec.parents and rec.kind != "job":
             inherited = {ALL}
             for parent in rec.parents:
                 p = self._held(principal, self.registry.get(parent))
@@ -144,6 +179,11 @@ class Runtime:
                 return self._view(principal, rec)
         raise self._not_found(principal, name, f"no handle with the name {name!r}")
 
+    def handles(self, principal: str) -> list[dict]:
+        """The live resource handles that the principal holds a capability on, as summaries, oldest first."""
+        recs = [self.registry.get(i) for i in self.registry.live_ids("resource")]
+        return [self._view(principal, rec, brief=True) for rec in recs if self._held(principal, rec)]
+
     def describe(self, principal: str, handle_id: str) -> dict:
         return self._view(principal, self._resolve(principal, handle_id))
 
@@ -153,9 +193,12 @@ class Runtime:
 
     # ---- lifecycle ----------------------------------------------------------------------------
 
-    def register(self, principal: str, name: str, adapter: str, source: dict) -> dict:
-        """Create a resource handle. The principal becomes the owner and holds every capability."""
-        a = self.adapter(adapter)
+    def register(self, principal: str, name: str, adapter: str, source: dict, worker: str | None = None) -> dict:
+        """Create a resource handle. The principal becomes the owner and holds every capability.
+
+        worker: the id of the remote worker that can reach the resource. The source is then a location on that worker.
+        """
+        a = self.adapter(f"{adapter}@{worker}" if worker else adapter)
         ref = a.open(source)
         rec = Record(
             id=new_id("hdl"), kind="resource", type=ref.type, adapter=a.name, locator=ref.locator,
@@ -192,7 +235,16 @@ class Runtime:
     # ---- execution ----------------------------------------------------------------------------
 
     def execute(self, principal: str, operation: dict) -> dict:
-        """Run one Operation and return an OperationResult. A protocol error is a failed result, not an exception."""
+        """Do one Operation and return an OperationResult. A protocol error is a failed result, not an exception.
+
+        With execution.async true, or for a capability with the execution mode `async`, the runtime
+        does all checks now and puts the operation in the job queue. The result then has the status
+        `running` and one job handle. A second submission of the same operation passes the same checks
+        and gives the same job.
+        """
+        return self._perform(principal, operation, queue=True)
+
+    def _perform(self, principal: str, operation: dict, *, queue: bool) -> dict:
         started, t0 = _now(), time.perf_counter()
         bad = violations("operations", operation)
         op_id = new_id("op") if bad else operation["id"]
@@ -205,26 +257,39 @@ class Runtime:
             cap = self._capability(principal, rec, operation["capability"])
             check_input(cap["input_schema"], operation["input"])
             input, more_parents = self._bind(principal, rec, cap["name"], operation["input"])
-            eager = operation["execution"].get("strategy") == "eager"
-            try:
-                out = self.adapter(rec.adapter).invoke(rec.ref, cap["name"], input, eager=eager)
-            except HandleError:
-                raise
-            except Exception as e:  # an adapter fault must not stop the runtime
-                raise HandleError("ADAPTER_ERROR", f"{type(e).__name__}: {e}") from e
-            if cap["returns"] == "handle":
-                assert isinstance(out, Derived), f"{cap['name']} must return Derived"
-                derived = self._derive(principal, rec, more_parents, operation, out)
-                result["handles"] = [self._view(principal, derived, brief=True)]
-                version, size = out.ref.version, 0
+            execution = operation["execution"]
+            placed = "remote" if "@" in rec.adapter else "local"
+            if execution["mode"] not in ("auto", placed):
+                raise HandleError("INVALID_INPUT", f"handle {rec.id} is {placed}, so execution.mode {execution['mode']} is not possible",
+                                  details={"placement": placed})
+            if queue and (execution.get("async") or cap["execution"]["mode"] == "async"):
+                derived = self._enqueue(principal, rec, more_parents, operation, cap)
+                result["status"], result["handles"] = "running", [self._view(principal, derived, brief=True)]
+                size, version = 0, ""
             else:
-                assert isinstance(out, Value), f"{cap['name']} must return Value"
-                size = len(json.dumps(out.output).encode())
-                limit = cap["limits"]["max_output_bytes"]
-                if size > limit:
-                    raise HandleError("RESULT_TOO_LARGE", f"the output is {size} bytes and the limit is {limit}",
-                                      details={"bytes": size, "max_output_bytes": limit})
-                result["output"], version = out.output, out.version
+                try:
+                    out = self.adapter(rec.adapter).invoke(rec.ref, cap["name"], input, eager=execution.get("strategy") == "eager")
+                except HandleError:
+                    raise
+                except Exception as e:  # an adapter fault must not stop the runtime
+                    raise HandleError("ADAPTER_ERROR", f"{type(e).__name__}: {e}") from e
+                if isinstance(out, Known):  # job.result: the handle that the job made
+                    made = self._resolve(principal, out.handle_id)
+                    result["handles"] = [self._view(principal, made, brief=True)]
+                    version, size = made.version, 0
+                elif cap["returns"] == "handle":
+                    assert isinstance(out, Derived), f"{cap['name']} must return Derived"
+                    derived = self._derive(principal, rec, more_parents, operation, out)
+                    result["handles"] = [self._view(principal, derived, brief=True)]
+                    version, size = out.ref.version, 0
+                else:
+                    assert isinstance(out, Value), f"{cap['name']} must return Value"
+                    size = len(json.dumps(out.output).encode())
+                    limit = cap["limits"]["max_output_bytes"]
+                    if size > limit:
+                        raise HandleError("RESULT_TOO_LARGE", f"the output is {size} bytes and the limit is {limit}",
+                                          details={"bytes": size, "max_output_bytes": limit})
+                    result["output"], version = out.output, out.version
             result["metadata"]["bytes_transferred"] = size
             if version:
                 result["metadata"]["source_version"] = version
@@ -240,19 +305,92 @@ class Runtime:
         )
         return result
 
-    def _derive(self, principal: str, rec: Record, more_parents: list, operation: dict, out: Derived) -> Record:
+    def _derive(self, principal: str, rec: Record, more_parents: list, operation: dict, out: Derived, adapter: str | None = None) -> Record:
         parents = [rec.id, *more_parents]
+        adapter = adapter or rec.adapter
         ephemeral = any(self.registry.get(p).persistence == "ephemeral" for p in parents)
         new = Record(
-            id=new_id("hdl"), kind=out.kind, type=out.ref.type, adapter=rec.adapter, locator=out.ref.locator,
+            id=new_id("hdl"), kind=out.kind, type=out.ref.type, adapter=adapter, locator=out.ref.locator,
             version=out.ref.version if out.kind == "result" else "",
-            descriptor=self.adapter(rec.adapter).describe(out.ref), consistency=out.consistency or rec.consistency,
+            descriptor=self.adapter(adapter).describe(out.ref), consistency=out.consistency or rec.consistency,
             persistence="ephemeral" if ephemeral else "persistent", created_at=_now(), released_at=None,
             owner=principal, parents=parents,
             operation={k: operation[k] for k in ("id", "capability", "input")},
         )
         self.registry.put(new)
         return new
+
+    # ---- jobs ---------------------------------------------------------------------------------
+
+    def _duplicate(self, principal: str, operation) -> dict | None:
+        """The job that the same principal made earlier from exactly this operation, if there is one."""
+        job = self.registry.job(operation["id"]) if isinstance(operation, dict) and isinstance(operation.get("id"), str) else None
+        return job if job and job["principal"] == principal and job["operation"] == operation else None
+
+    def _enqueue(self, principal: str, rec: Record, more_parents: list, operation: dict, cap: dict) -> Record:
+        """Store a job and make its handle. The submitter holds every capability on the job handle.
+
+        The job handle derives from the handles of the operation. So it ends when one of them is
+        released, and it is ephemeral when one of them is ephemeral.
+        """
+        with self._lock:
+            job = self._duplicate(principal, operation)
+            if job:
+                return self.registry.get(job["handle_id"])
+            if self.registry.job(operation["id"]):
+                raise HandleError("INVALID_INPUT", f"the operation id {operation['id']} belongs to another job")
+            self.registry.add_job(id=operation["id"], principal=principal, operation=operation, capability=cap, submitted_at=_now())
+            handle = self._derive(principal, rec, more_parents, operation,
+                                  Derived(ResourceRef("job", {"job": operation["id"]}), kind="job"), adapter="job")
+            self.registry.grant(principal, handle.id, [ALL])
+            self.registry.queue_job(operation["id"], handle.id)
+        self._start()
+        return handle
+
+    def _start(self) -> None:
+        with self._lock:
+            if self._thread is None:
+                self._thread = threading.Thread(target=self._work, name="datahandles-jobs", daemon=True)
+                self._thread.start()
+        self._wake.set()
+
+    def _work(self) -> None:
+        """The job thread: do the queued jobs one at a time, oldest first."""
+        while True:
+            job = self.registry.start_job(_now())
+            if job is None:
+                self._wake.wait()
+                self._wake.clear()
+                continue
+            try:
+                # All checks run again here. A grant that was revoked after the submission stops the job.
+                result = self._perform(job["principal"], job["operation"], queue=False)
+            except Exception as e:  # a fault in one job must not stop the job thread
+                result = {"operation_id": job["id"], "status": "failed", "metadata": {},
+                          "error": HandleError("ADAPTER_ERROR", f"{type(e).__name__}: {e}").to_dict()}
+            state = self.registry.end_job(job["id"], job["attempts"], result["status"], _now(), result)
+            if state != result["status"] and "handles" in result:
+                # The job was cancelled, or a restart replaced this attempt. The handle that it made must not stay.
+                made = self.registry.get(result["handles"][0]["id"])
+                self.adapter(made.adapter).release(made.ref, made.kind)
+                self.registry.mark_released(made.id, _now())
+
+    def _recover(self) -> None:
+        """Deal with the jobs that an earlier runtime process left (ARCHITECTURE.md section 13).
+
+        A queued job runs. A job that was running runs again only if its capability is idempotent.
+        If not, the job fails with JOB_INTERRUPTED, because the runtime cannot know if the effect occurred.
+        """
+        for job in self.registry.jobs("running"):
+            if job["capability"]["execution"]["idempotent"] and not job["cancel"]:
+                self.registry.requeue_job(job["id"])
+            else:
+                error = HandleError("JOB_INTERRUPTED", f"the runtime stopped during attempt {job['attempts']} and the capability is not idempotent",
+                                    details={"attempts": job["attempts"]})
+                self.registry.end_job(job["id"], job["attempts"], "failed", _now(),
+                                      {"operation_id": job["id"], "status": "failed", "metadata": {}, "error": error.to_dict()})
+        if self.registry.jobs("queued"):
+            self._start()
 
     # ---- graphs -------------------------------------------------------------------------------
 

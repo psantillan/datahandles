@@ -4,6 +4,7 @@ Every handle and every result that these tests touch must also pass the protocol
 """
 import json
 import os
+import threading
 
 import duckdb
 import pytest
@@ -11,6 +12,7 @@ import pytest
 from datahandles import Client, HandleError, Runtime
 from datahandles.core import DEFAULT_MAX_OUTPUT_BYTES, capability, new_id, violations
 from datahandles.runtime.adapter import ResourceAdapter, ResourceRef, Value
+from datahandles.workers.remote import Worker
 
 EVENTS = """SELECT i AS id, i % 50 AS customer_id, ['purchase', 'view', 'click'][1 + i % 3] AS event_type,
             (i % 97) * 1.5 AS amount, 'note-' || i AS note FROM range({n}) t(i)"""
@@ -113,9 +115,31 @@ def test_a_graph_of_dependent_operations_runs_in_order(paul, data):
     assert e.value.code == "GRAPH_CYCLE"
 
 
-@pytest.mark.skip(reason="NOT BUILT: the remote HTTP worker is the next milestone (ROADMAP.md)")
-def test_local_and_remote_execution_give_equal_results():
-    pass
+def test_local_and_remote_execution_give_equal_results(paul, data, tmp_path):
+    server = Worker(tmp_path / "worker", "the shared key", ["duckdb"]).serve()
+    threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True).start()
+    url = f"http://127.0.0.1:{server.server_port}"
+    assert paul.runtime.add_worker("w1", url, "the shared key")["adapters"] == {"duckdb": {"persistence": "persistent"}}
+
+    def ask(worker):
+        events = paul.register("events", adapter="duckdb", source=data["events"], worker=worker)
+        customers = paul.register("customers", adapter="duckdb", source=data["customers"], worker=worker)
+        top = revenue_by_country(events, customers)
+        stored = top.invoke("dataset.limit", {"n": 2}, eager=True)
+        return events, top, [call(top, "dataset.head")["output"], top.invoke("dataset.count"), stored.invoke("dataset.head"),
+                             {k: v for k, v in top.describe().items() if k not in ("id", "parents", "lifecycle")}]
+
+    (near, _, local), (far, top, remote) = ask(None), ask("w1")
+    assert local == remote and len(local[0]["rows"]) == 3
+    # The same program ran in two places. The caller sees no place in a handle.
+    assert violations("handles", far.info) == [] and url not in json.dumps([far.info, top.graph()])
+    assert paul.runtime.registry.get(top.id).adapter == "duckdb@w1"  # a derived handle stays where its parents are
+    # With no worker, the remote handle gives a typed error that a caller can retry. The local handle still works.
+    server.shutdown()
+    server.server_close()
+    gone = call(top, "dataset.count")
+    assert code(gone) == "WORKER_UNAVAILABLE" and gone["error"]["retryable"] is True
+    assert near.invoke("dataset.count") == {"rows": 20_000}
 
 
 class Clock(ResourceAdapter):

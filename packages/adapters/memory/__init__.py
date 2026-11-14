@@ -1,7 +1,7 @@
 """In-memory JSON objects. The objects live in the runtime process, so the handles are ephemeral."""
 import copy
 
-from ...core import HandleError, capability, new_id
+from ...core import HANDLE_INPUT, HandleError, capability, new_id
 from ...runtime.adapter import Derived, ResourceAdapter, ResourceRef, Value
 
 _PATH = {"type": "array", "items": {"type": ["string", "integer"]}, "description": "Keys and list indexes from the root of this handle."}
@@ -12,6 +12,8 @@ _CAPS = [
                {"path": _PATH}, required=["path"], returns="handle"),
     capability("object.set", "Write a value at a path. The version of the object increases.",
                {"path": _PATH, "value": {}}, required=["path", "value"], write=True, idempotent=True),
+    capability("object.equals", "Compare this object with a second object. The answer is one boolean.",
+               {"other": HANDLE_INPUT}, required=["other"]),
     capability("object.snapshot", "Derive a handle to a copy of the object at its current version. Later writes do not change the copy.",
                returns="handle"),
 ]
@@ -69,6 +71,8 @@ class Adapter(ResourceAdapter):
             self._at(ref, path[:-1])[path[-1]] = input["value"]
             slot[1] += 1
             return Value({"version": str(slot[1])}, str(slot[1]))
+        if capability == "object.equals":
+            return Value({"equal": self._at(ref) == self._at(input["other"])}, version)
         if capability == "object.snapshot":
             # A copy is the only way to pin a version of a mutable Python object, so this always stores a result.
             key = new_id("obj")

@@ -3,6 +3,7 @@
 An adapter knows one kind of resource. It does not see principals, grants, or handle ids.
 The runtime resolves a handle to a ResourceRef, does all checks, then calls the adapter.
 """
+import threading
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
@@ -33,6 +34,12 @@ class Derived:
     consistency: str | None = None  # None: same as the target handle
 
 
+@dataclass(frozen=True)
+class Known:
+    """A handle that is in the registry already. Only an adapter inside the runtime (the job adapter) returns it."""
+    handle_id: str
+
+
 class ResourceAdapter(ABC):
     name: str  # the adapter identifier in the registry
     persistence = "persistent"  # "ephemeral": the resource does not live longer than the runtime process
@@ -47,7 +54,10 @@ class ResourceAdapter(ABC):
 
     @abstractmethod
     def discover(self, ref: ResourceRef) -> list[dict]:
-        """What can a caller do with it? Return capability descriptors."""
+        """What can a caller do with it? Return capability descriptors.
+
+        The runtime calls this from any thread, also during a long `invoke`. So it must not use state that `invoke` changes.
+        """
 
     @abstractmethod
     def invoke(self, ref: ResourceRef, capability: str, input: dict, *, eager: bool) -> Value | Derived:
@@ -63,3 +73,23 @@ class ResourceAdapter(ABC):
 
     def release(self, ref: ResourceRef, kind: str) -> None:
         """Free what the adapter holds for a released handle. Never delete the external resource."""
+
+
+class Serial:
+    """Let one thread at a time call an adapter. An adapter (for example one DuckDB connection) is not safe for two threads.
+
+    `discover` does not wait. So during a long job on an adapter, a caller can still see capabilities and submit operations.
+    """
+
+    def __init__(self, adapter: ResourceAdapter):
+        self._adapter, self._lock = adapter, threading.RLock()
+
+    def __getattr__(self, name):
+        attr = getattr(self._adapter, name)
+        if not callable(attr) or name == "discover":
+            return attr
+
+        def call(*args, **kwargs):
+            with self._lock:
+                return attr(*args, **kwargs)
+        return call

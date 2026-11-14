@@ -39,7 +39,8 @@
             "auto",
             "local",
             "remote"
-          ]
+          ],
+          "description": "A limit on the place of execution. auto: where the resource of the target handle is. local: only in the runtime process. remote: only on a remote worker."
         },
         "strategy": {
           "enum": [
@@ -55,6 +56,10 @@
         "deadline": {
           "type": "string",
           "format": "date-time"
+        },
+        "async": {
+          "type": "boolean",
+          "description": "true: the runtime does all checks, puts the operation in the job queue, and returns a job handle with the status running."
         }
       }
     }

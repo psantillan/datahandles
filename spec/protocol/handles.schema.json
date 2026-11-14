@@ -23,9 +23,10 @@
       "enum": [
         "resource",
         "computation",
-        "result"
+        "result",
+        "job"
       ],
-      "description": "resource: an external resource. computation: a planned computation that did not run yet. result: the stored output of a computation."
+      "description": "resource: an external resource. computation: a planned computation that did not run yet. result: the stored output of a computation. job: an operation that the runtime runs asynchronously."
     },
     "type": {
       "type": "string",
