@@ -7,6 +7,8 @@ import threading
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from ..core import HandleError
+
 
 @dataclass(frozen=True)
 class ResourceRef:
@@ -34,6 +36,46 @@ class Derived:
     consistency: str | None = None  # None: same as the target handle
 
 
+class Call:
+    """One adapter call. The runtime cancels it on `job.cancel` or when `limits.timeout_ms` passes.
+
+    Python cannot stop a thread, so a cancel is cooperative. An adapter registers a hook with
+    `on_cancel` (kill a subprocess, cancel a future) or checks `cancelled` between steps. Then its
+    `invoke` returns or raises soon after the cancel, and its lock is free again.
+    """
+
+    def __init__(self):
+        self._lock, self._hooks, self.reason = threading.Lock(), [], None
+
+    @property
+    def cancelled(self) -> bool:
+        return self.reason is not None
+
+    def on_cancel(self, hook) -> None:
+        """Run `hook()` at the cancel. If the call is cancelled already, run it now."""
+        with self._lock:
+            if self.reason is None:
+                self._hooks.append(hook)
+                return
+        hook()
+
+    def cancel(self, reason: str) -> None:
+        with self._lock:
+            if self.reason is not None:
+                return
+            self.reason, hooks, self._hooks = reason, self._hooks, []
+        for hook in hooks:
+            try:
+                hook()
+            except Exception:  # a hook that fails must not stop the other hooks
+                pass
+
+    def check(self) -> None:
+        """Raise if the call is cancelled. An adapter calls this between the steps of a long operation."""
+        if self.reason is not None:
+            raise HandleError("JOB_CANCELLED" if self.reason == "cancel" else "OPERATION_TIMEOUT", f"the call was stopped: {self.reason}")
+
+
 @dataclass(frozen=True)
 class Known:
     """A handle that is in the registry already. Only an adapter inside the runtime (the job adapter) returns it."""
@@ -43,6 +85,15 @@ class Known:
 class ResourceAdapter(ABC):
     name: str  # the adapter identifier in the registry
     persistence = "persistent"  # "ephemeral": the resource does not live longer than the runtime process
+
+    def lock_key(self, ref: ResourceRef):
+        """Which calls must not run at the same time. Calls with different keys can run in parallel.
+
+        The default None gives one lock for the whole adapter. That is correct for an adapter with
+        one shared connection (DuckDB). An adapter whose resources are independent returns a key
+        for each resource, for example the repository path.
+        """
+        return None
 
     @abstractmethod
     def open(self, source: dict) -> ResourceRef:
@@ -60,11 +111,12 @@ class ResourceAdapter(ABC):
         """
 
     @abstractmethod
-    def invoke(self, ref: ResourceRef, capability: str, input: dict, *, eager: bool) -> Value | Derived:
+    def invoke(self, ref: ResourceRef, capability: str, input: dict, *, eager: bool, call: Call) -> Value | Derived:
         """Do one operation. The input passed the input_schema; handle inputs are ResourceRef objects.
 
         For a capability that returns a handle: with eager False, return a plan and do not run it.
         With eager True, run it and store the output.
+        A long operation must stop soon after `call` is cancelled (see Call).
         """
 
     @abstractmethod
@@ -75,21 +127,30 @@ class ResourceAdapter(ABC):
         """Free what the adapter holds for a released handle. Never delete the external resource."""
 
 
-class Serial:
-    """Let one thread at a time call an adapter. An adapter (for example one DuckDB connection) is not safe for two threads.
+class Locked:
+    """Let one thread at a time call an adapter for each lock key (see ResourceAdapter.lock_key).
 
-    `discover` does not wait. So during a long job on an adapter, a caller can still see capabilities and submit operations.
+    `discover` does not wait. So during a long job on a resource, a caller can still see capabilities and submit operations.
+    `open` has no reference yet. It takes the lock of the whole adapter only when the adapter uses one lock for all.
     """
 
     def __init__(self, adapter: ResourceAdapter):
-        self._adapter, self._lock = adapter, threading.RLock()
+        self._adapter, self._guard, self._locks = adapter, threading.Lock(), {}
+
+    def _lock(self, ref):
+        key = None if ref is None else self._adapter.lock_key(ref)
+        with self._guard:
+            return self._locks.setdefault(key, threading.RLock())
 
     def __getattr__(self, name):
         attr = getattr(self._adapter, name)
-        if not callable(attr) or name == "discover":
+        if not callable(attr) or name in ("discover", "lock_key"):
             return attr
 
         def call(*args, **kwargs):
-            with self._lock:
+            ref = args[0] if args and isinstance(args[0], ResourceRef) else None
+            if ref is None and self._adapter.lock_key.__func__ is not ResourceAdapter.lock_key:
+                return attr(*args, **kwargs)  # `open` on an adapter with a lock for each resource
+            with self._lock(ref):
                 return attr(*args, **kwargs)
         return call

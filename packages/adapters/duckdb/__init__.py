@@ -165,7 +165,7 @@ class Adapter(ResourceAdapter):
             raise HandleError("INVALID_INPUT", f"no such column: {missing}", details={"columns": have})
         return have
 
-    def invoke(self, ref: ResourceRef, capability: str, input: dict, *, eager: bool) -> Value | Derived:
+    def invoke(self, ref: ResourceRef, capability: str, input: dict, *, eager: bool, call) -> Value | Derived:
         plan, verb = ref.locator["plan"], capability.split(".")[1]
         if verb == "schema":
             return Value({"columns": self._columns(plan)}, self._version(plan))

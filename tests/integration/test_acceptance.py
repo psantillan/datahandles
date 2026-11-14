@@ -161,7 +161,7 @@ class Clock(ResourceAdapter):
     def observe(self, ref):
         return {"version": str(self.ticks)}
 
-    def invoke(self, ref, capability, input, *, eager):
+    def invoke(self, ref, capability, input, *, eager, call):
         if capability == "clock.fail":
             raise RuntimeError("the clock is broken")
         self.ticks += 1

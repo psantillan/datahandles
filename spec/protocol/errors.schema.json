@@ -23,7 +23,8 @@
         "WORKER_UNAVAILABLE",
         "JOB_NOT_FINISHED",
         "JOB_CANCELLED",
-        "JOB_INTERRUPTED"
+        "JOB_INTERRUPTED",
+        "OPERATION_TIMEOUT"
       ]
     },
     "message": {

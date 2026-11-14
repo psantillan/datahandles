@@ -8,13 +8,14 @@ process. The name `duckdb@w1` is the same adapter on the registered remote worke
 """
 import importlib.util
 import json
+import os
 import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 from ..core import HandleError, check_input, edit_distance, new_id, topological_order, violations
-from .adapter import Derived, Known, ResourceAdapter, ResourceRef, Serial, Value
+from .adapter import Call, Derived, Known, Locked, ResourceAdapter, ResourceRef, Value
 from .jobs import JobAdapter
 from .registry import Record, Registry
 
@@ -37,15 +38,18 @@ def _allows(held: set, capability: str) -> bool:
 
 
 class Runtime:
-    def __init__(self, state_dir=".datahandles", adapters: tuple[ResourceAdapter, ...] = ()):
+    def __init__(self, state_dir=".datahandles", adapters: tuple[ResourceAdapter, ...] = (), job_threads: int | None = None):
+        """job_threads: how many jobs run at the same time. The default is one for each CPU (os.cpu_count)."""
         self.state_dir = Path(state_dir)
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.registry = Registry(self.state_dir / "registry.sqlite")
         self.registry.drop_ephemeral()
-        self._lock = threading.RLock()  # the adapter table, the job thread, and job submission
-        self._adapters = {a.name: Serial(a) for a in adapters}
-        self._adapters["job"] = JobAdapter(self.registry, _now)
-        self._wake, self._thread = threading.Event(), None
+        self._lock = threading.RLock()  # the adapter table and job submission
+        self._adapters = {a.name: Locked(a) for a in adapters}
+        self._adapters["job"] = JobAdapter(self.registry, _now, self._cancel_running)
+        self._job_threads = job_threads or os.cpu_count() or 1
+        self._queue, self._threads = threading.Condition(), []
+        self._calls: dict[str, Call] = {}  # job id -> the adapter call of its running attempt
         self._recover()
 
     def adapter(self, name: str) -> ResourceAdapter:
@@ -62,7 +66,7 @@ class Runtime:
                     from ..workers.remote import RemoteAdapter  # not at the top: the worker module is also a program
                     self._adapters[name] = RemoteAdapter(kind, worker)
                 else:
-                    self._adapters[name] = Serial(importlib.import_module(f"datahandles.adapters.{kind}").Adapter(self.state_dir))
+                    self._adapters[name] = Locked(importlib.import_module(f"datahandles.adapters.{kind}").Adapter(self.state_dir))
             return self._adapters[name]
 
     def add_worker(self, worker_id: str, url: str, key: str) -> dict:
@@ -244,7 +248,7 @@ class Runtime:
         """
         return self._perform(principal, operation, queue=True)
 
-    def _perform(self, principal: str, operation: dict, *, queue: bool) -> dict:
+    def _perform(self, principal: str, operation: dict, *, queue: bool, call: Call | None = None) -> dict:
         started, t0 = _now(), time.perf_counter()
         bad = violations("operations", operation)
         op_id = new_id("op") if bad else operation["id"]
@@ -267,12 +271,7 @@ class Runtime:
                 result["status"], result["handles"] = "running", [self._view(principal, derived, brief=True)]
                 size, version = 0, ""
             else:
-                try:
-                    out = self.adapter(rec.adapter).invoke(rec.ref, cap["name"], input, eager=execution.get("strategy") == "eager")
-                except HandleError:
-                    raise
-                except Exception as e:  # an adapter fault must not stop the runtime
-                    raise HandleError("ADAPTER_ERROR", f"{type(e).__name__}: {e}") from e
+                out = self._call_adapter(rec, cap, input, execution.get("strategy") == "eager", call or Call())
                 if isinstance(out, Known):  # job.result: the handle that the job made
                     made = self._resolve(principal, out.handle_id)
                     result["handles"] = [self._view(principal, made, brief=True)]
@@ -304,6 +303,46 @@ class Runtime:
             source_version=result["metadata"].get("source_version"), result_handle=derived and derived.id,
         )
         return result
+
+    def _call_adapter(self, rec: Record, cap: dict, input: dict, eager: bool, call: Call):
+        """Call the adapter. With `limits.timeout_ms` on the capability, stop waiting at that time.
+
+        At the time limit the runtime cancels the call (see Call) and gives OPERATION_TIMEOUT at once.
+        The adapter thread goes on until the adapter honours the cancel. Its output is then discarded.
+        """
+        adapter = self.adapter(rec.adapter)
+
+        def run():
+            try:
+                return adapter.invoke(rec.ref, cap["name"], input, eager=eager, call=call)
+            except HandleError:
+                raise
+            except Exception as e:  # an adapter fault must not stop the runtime
+                raise HandleError("ADAPTER_ERROR", f"{type(e).__name__}: {e}") from e
+
+        timeout_ms = cap.get("limits", {}).get("timeout_ms")
+        if timeout_ms is None:
+            return run()
+        box, done = {}, threading.Event()
+
+        def work():
+            try:
+                box["out"] = run()
+            except HandleError as e:
+                box["error"] = e
+            finally:
+                done.set()
+            if call.cancelled and isinstance(box.get("out"), Derived) and box["out"].kind == "result":
+                adapter.release(box["out"].ref, "result")  # nobody will get a handle to this stored output
+
+        threading.Thread(target=work, name="datahandles-call", daemon=True).start()
+        if not done.wait(timeout_ms / 1000):
+            call.cancel("timeout")
+            if not done.is_set():
+                raise HandleError("OPERATION_TIMEOUT", f"{cap['name']} did not end in {timeout_ms} ms", details={"timeout_ms": timeout_ms})
+        if "error" in box:
+            raise box["error"]
+        return box["out"]
 
     def _derive(self, principal: str, rec: Record, more_parents: list, operation: dict, out: Derived, adapter: str | None = None) -> Record:
         parents = [rec.id, *more_parents]
@@ -344,30 +383,46 @@ class Runtime:
                                   Derived(ResourceRef("job", {"job": operation["id"]}), kind="job"), adapter="job")
             self.registry.grant(principal, handle.id, [ALL])
             self.registry.queue_job(operation["id"], handle.id)
-        self._start()
+        self._start(1)
         return handle
 
-    def _start(self) -> None:
-        with self._lock:
-            if self._thread is None:
-                self._thread = threading.Thread(target=self._work, name="datahandles-jobs", daemon=True)
-                self._thread.start()
-        self._wake.set()
+    def _start(self, jobs: int) -> None:
+        """Start the job threads if they are not running, and wake one thread for each new job."""
+        with self._queue:
+            while len(self._threads) < self._job_threads:
+                thread = threading.Thread(target=self._work, name=f"datahandles-jobs-{len(self._threads)}", daemon=True)
+                self._threads.append(thread)
+                thread.start()
+            self._queue.notify(jobs)
+
+    def _next_job(self) -> dict:
+        with self._queue:
+            while (job := self.registry.start_job(_now())) is None:
+                self._queue.wait()
+            call = self._calls[job["id"]] = Call()
+            if job["cancel"]:
+                call.cancel("cancel")
+            return job
+
+    def _cancel_running(self, job_id: str) -> None:
+        """job.cancel on a running job: cancel its adapter call (see Call)."""
+        with self._queue:
+            call = self._calls.get(job_id)
+        if call:
+            call.cancel("cancel")
 
     def _work(self) -> None:
-        """The job thread: do the queued jobs one at a time, oldest first."""
+        """A job thread: take the oldest queued job, run it, repeat. Several threads do this at the same time."""
         while True:
-            job = self.registry.start_job(_now())
-            if job is None:
-                self._wake.wait()
-                self._wake.clear()
-                continue
+            job = self._next_job()
             try:
                 # All checks run again here. A grant that was revoked after the submission stops the job.
-                result = self._perform(job["principal"], job["operation"], queue=False)
+                result = self._perform(job["principal"], job["operation"], queue=False, call=self._calls[job["id"]])
             except Exception as e:  # a fault in one job must not stop the job thread
                 result = {"operation_id": job["id"], "status": "failed", "metadata": {},
                           "error": HandleError("ADAPTER_ERROR", f"{type(e).__name__}: {e}").to_dict()}
+            with self._queue:
+                self._calls.pop(job["id"], None)
             state = self.registry.end_job(job["id"], job["attempts"], result["status"], _now(), result)
             if state != result["status"] and "handles" in result:
                 # The job was cancelled, or a restart replaced this attempt. The handle that it made must not stay.
@@ -389,8 +444,9 @@ class Runtime:
                                     details={"attempts": job["attempts"]})
                 self.registry.end_job(job["id"], job["attempts"], "failed", _now(),
                                       {"operation_id": job["id"], "status": "failed", "metadata": {}, "error": error.to_dict()})
-        if self.registry.jobs("queued"):
-            self._start()
+        queued = len(self.registry.jobs("queued"))
+        if queued:
+            self._start(queued)
 
     # ---- graphs -------------------------------------------------------------------------------
 

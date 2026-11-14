@@ -13,8 +13,8 @@ TERMINAL = ("completed", "failed", "cancelled")
 class JobAdapter(ResourceAdapter):
     name = "job"
 
-    def __init__(self, registry, now):
-        self._registry, self._now = registry, now
+    def __init__(self, registry, now, cancel_running):
+        self._registry, self._now, self._cancel_running = registry, now, cancel_running
 
     def _job(self, ref: ResourceRef) -> dict:
         return self._registry.job(ref.locator["job"])
@@ -31,7 +31,7 @@ class JobAdapter(ResourceAdapter):
         of = self._job(ref)["capability"]
         return [
             capability("job.status", "Return the state of the job: queued, running, completed, failed, or cancelled."),
-            capability("job.cancel", "Stop the job. A queued job ends now. The output of a running job is discarded.", write=True),
+            capability("job.cancel", "Stop the job. A queued job ends now. A running job gets a cancel signal, and its output is discarded.", write=True),
             capability("job.result", "Return what the operation gives. Before the job ends the answer is the error JOB_NOT_FINISHED, and a later call can succeed.",
                        returns=of["returns"], max_output_bytes=of.get("limits", {}).get("max_output_bytes")),
         ]
@@ -40,9 +40,10 @@ class JobAdapter(ResourceAdapter):
         job = self._job(ref)
         return {"version": f"{job['state']}:{job['attempts']}", "state": job["state"]}
 
-    def invoke(self, ref: ResourceRef, capability: str, input: dict, *, eager: bool) -> Value | Known:
+    def invoke(self, ref: ResourceRef, capability: str, input: dict, *, eager: bool, call) -> Value | Known:
         if capability == "job.cancel":
             self._registry.cancel_job(ref.locator["job"], self._now())
+            self._cancel_running(ref.locator["job"])
         job = self._job(ref)
         if capability == "job.result":
             return self._result(job)

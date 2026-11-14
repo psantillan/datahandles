@@ -25,7 +25,7 @@ from pathlib import Path
 
 from ..core import HandleError, new_id
 from ..core.wire import post, serve
-from ..runtime.adapter import Derived, ResourceAdapter, ResourceRef, Serial, Value
+from ..runtime.adapter import Call, Derived, Locked, ResourceAdapter, ResourceRef, Value
 
 # ASSUMED: 30 s. A task is valid for this time after the runtime signs it. The time must cover the
 # clock difference between the two machines and the time to send the request. No measurement is behind it.
@@ -37,9 +37,9 @@ def sign(key: str, body: bytes) -> str:
     return hmac.new(key.encode(), body, hashlib.sha256).hexdigest()
 
 
-def call(url: str, key: str, task: dict):
+def call(url: str, key: str, task: dict, task_id: str | None = None):
     """Sign one task, send it to a worker, and return the answer. A protocol error from the worker is raised again here."""
-    body = json.dumps({**task, "id": new_id("tsk"), "expires": time.time() + TASK_TTL_S}).encode()
+    body = json.dumps({**task, "id": task_id or new_id("tsk"), "expires": time.time() + TASK_TTL_S}).encode()
     try:
         _, reply = post(url, "/v1/task", body, {SIGNATURE: sign(key, body)})
     except (OSError, http.client.HTTPException, ValueError) as e:
@@ -64,8 +64,8 @@ class RemoteAdapter(ResourceAdapter):
         self.name, self.persistence = f"{kind}@{worker['id']}", hosted[kind]["persistence"]
         self._kind, self._url, self._key = kind, worker["url"], worker["key"]
 
-    def _task(self, method: str, **fields):
-        return call(self._url, self._key, {"method": method, "adapter": self._kind, **fields})
+    def _task(self, method: str, task_id: str | None = None, **fields):
+        return call(self._url, self._key, {"method": method, "adapter": self._kind, **fields}, task_id)
 
     def open(self, source: dict) -> ResourceRef:
         return ResourceRef(**self._task("open", source=source))
@@ -82,10 +82,13 @@ class RemoteAdapter(ResourceAdapter):
     def release(self, ref: ResourceRef, kind: str) -> None:
         self._task("release", ref=_plain(ref), kind=kind)
 
-    def invoke(self, ref: ResourceRef, capability: str, input: dict, *, eager: bool) -> Value | Derived:
+    def invoke(self, ref: ResourceRef, capability: str, input: dict, *, eager: bool, call: Call) -> Value | Derived:
         # A second input handle goes in `refs`, apart from the caller's values. So no value from a caller can pass as a reference.
         refs = {k: _plain(v) for k, v in input.items() if isinstance(v, ResourceRef)}
-        out = self._task("invoke", ref=_plain(ref), capability=capability, eager=eager, refs=refs,
+        task_id = new_id("tsk")
+        # A cancel here becomes a cancel task to the worker, which cancels the adapter call there.
+        call.on_cancel(lambda: self._task("cancel", task=task_id, reason=call.reason))
+        out = self._task("invoke", task_id, ref=_plain(ref), capability=capability, eager=eager, refs=refs,
                          input={k: v for k, v in input.items() if k not in refs})
         if "derived" in out:
             return Derived(ResourceRef(**out["derived"]), out["kind"], out["consistency"])
@@ -101,8 +104,9 @@ class Worker:
         for name in adapters:
             if not name.isidentifier():
                 raise ValueError(f"bad adapter name: {name!r}")
-        self._adapters = {name: Serial(importlib.import_module(f"datahandles.adapters.{name}").Adapter(self.state_dir)) for name in adapters}
+        self._adapters = {name: Locked(importlib.import_module(f"datahandles.adapters.{name}").Adapter(self.state_dir)) for name in adapters}
         self._seen, self._lock = {}, threading.Lock()  # task id -> expiry time
+        self._calls: dict[str, Call] = {}  # task id -> the call of a running invoke task
 
     def info(self) -> dict:
         return {"id": self.id, "adapters": {name: {"persistence": a.persistence} for name, a in self._adapters.items()},
@@ -125,6 +129,12 @@ class Worker:
         method = task["method"]
         if method == "info":
             return self.info()
+        if method == "cancel":
+            with self._lock:
+                running = self._calls.get(task["task"])
+            if running:
+                running.cancel(task["reason"])
+            return {"cancelled": running is not None}
         if task["adapter"] not in self._adapters:
             raise HandleError("INVALID_INPUT", f"this worker does not host the adapter {task['adapter']}")
         adapter = self._adapters[task["adapter"]]
@@ -137,7 +147,13 @@ class Worker:
             return adapter.release(ref, task["kind"])
         if method == "invoke":
             input = {**task["input"], **{k: ResourceRef(**v) for k, v in task["refs"].items()}}
-            out = adapter.invoke(ref, task["capability"], input, eager=task["eager"])
+            with self._lock:
+                running = self._calls[task["id"]] = Call()
+            try:
+                out = adapter.invoke(ref, task["capability"], input, eager=task["eager"], call=running)
+            finally:
+                with self._lock:
+                    self._calls.pop(task["id"], None)
             if isinstance(out, Derived):
                 return {"derived": _plain(out.ref), "kind": out.kind, "consistency": out.consistency}
             return {"output": out.output, "version": out.version}

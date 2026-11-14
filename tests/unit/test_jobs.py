@@ -31,7 +31,7 @@ class Gate(ResourceAdapter):
     def observe(self, ref):
         return {"version": "1"}
 
-    def invoke(self, ref, capability, input, *, eager):
+    def invoke(self, ref, capability, input, *, eager, call):
         self.calls += 1
         self.entered.set()
         assert self.opened.wait(10), "the test did not open the gate"
@@ -39,8 +39,9 @@ class Gate(ResourceAdapter):
 
 
 def start(tmp_path, **gate):
+    """One job thread, so a second job stays queued while the first one runs."""
     adapter = Gate(**gate)
-    paul = Client(Runtime(tmp_path / "state", adapters=(adapter,)), "paul")
+    paul = Client(Runtime(tmp_path / "state", adapters=(adapter,), job_threads=1), "paul")
     return adapter, paul, paul.register("gate", adapter="gate", source={})
 
 
@@ -135,7 +136,7 @@ def test_an_interrupted_job_runs_again_only_if_the_capability_is_idempotent(tmp_
     assert (before["state"], before["attempts"]) == (("running", 2) if idempotent else ("failed", 1))
     # Attempt 1 of the stopped runtime ends late. It must not change the job.
     adapter.opened.set()
-    paul.runtime._thread.join(0.5)
+    paul.runtime._threads[0].join(0.5)  # give the late attempt time to end
     assert job.invoke("job.status") == before
     after.opened.set()
     if idempotent:

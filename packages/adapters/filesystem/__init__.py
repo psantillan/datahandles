@@ -52,6 +52,9 @@ class Adapter(ResourceAdapter):
             raise HandleError("INVALID_INPUT", f"no such path: {rel!r}")
         return path
 
+    def lock_key(self, ref: ResourceRef):
+        return ref.locator["root"]  # read-only: a tree does not touch another
+
     def describe(self, ref: ResourceRef) -> dict:
         return {"description": "A read-only directory tree.", "schema": {"root_name": Path(ref.locator["root"]).name}}
 
@@ -62,7 +65,7 @@ class Adapter(ResourceAdapter):
         # The version of a directory changes when an entry is added or removed, not when a file in it is edited.
         return {"version": _version(self._path(ref).stat())}
 
-    def invoke(self, ref: ResourceRef, capability: str, input: dict, *, eager: bool) -> Value | Derived:
+    def invoke(self, ref: ResourceRef, capability: str, input: dict, *, eager: bool, call) -> Value | Derived:
         root, path = Path(ref.locator["root"]), self._path(ref, input.get("path", ""))
         st = path.stat()
         if capability == "filesystem.stat":

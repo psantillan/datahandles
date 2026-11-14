@@ -26,6 +26,9 @@ class Adapter(ResourceAdapter):
     def __init__(self, state_dir=None):
         self._objects: dict[str, list] = {}  # key -> [value, version]
 
+    def lock_key(self, ref: ResourceRef):
+        return ref.locator["key"]  # one object does not touch another
+
     def open(self, source: dict) -> ResourceRef:
         key = new_id("obj")
         self._objects[key] = [source["value"], 1]
@@ -52,7 +55,7 @@ class Adapter(ResourceAdapter):
     def observe(self, ref: ResourceRef) -> dict:
         return {"version": str(self._slot(ref)[1])}
 
-    def invoke(self, ref: ResourceRef, capability: str, input: dict, *, eager: bool) -> Value | Derived:
+    def invoke(self, ref: ResourceRef, capability: str, input: dict, *, eager: bool, call) -> Value | Derived:
         slot, path = self._slot(ref), input.get("path", [])
         version = str(slot[1])
         if capability == "object.get":
