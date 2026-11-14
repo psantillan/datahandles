@@ -14,8 +14,8 @@ vulnerability.
   identifier, checks each column against the schema, and binds each value as a parameter.
 - The filesystem adapter is read-only and keeps each path, symlinks included, inside its root.
 - The git adapter is read-only. It reads commits and trees, never the work tree. Git resolves each
-  path inside a commit. A rev or a path that starts with `-` is refused, and external diff programs
-  and text conversion are off.
+  path inside a commit (`commit:path`). A rev goes to git after `--end-of-options`, so it cannot
+  pass as an option. External diff programs and text conversion are off.
 - The browser adapter opens only http and https URLs.
 - Each value output has a size limit that the runtime enforces.
 - The HTTP transport takes the principal from a bearer token, never from the request body. Only

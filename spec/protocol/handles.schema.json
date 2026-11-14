@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:datahandles:spec:0.1:handles.schema.json",
+  "$id": "urn:datahandles:spec:0.2:handles.schema.json",
   "title": "Handle",
   "type": "object",
   "additionalProperties": false,
@@ -52,7 +52,7 @@
     "capabilities": {
       "type": "array",
       "items": {
-        "$ref": "urn:datahandles:spec:0.1:capabilities.schema.json"
+        "$ref": "urn:datahandles:spec:0.2:capabilities.schema.json"
       },
       "description": "The interface of the resource. This list is not an authorization. The runtime checks each operation against its policy."
     },

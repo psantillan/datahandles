@@ -15,8 +15,8 @@ the caller and runs it where the resource is: in process or on a remote worker. 
 runs as a job, and the job is a handle too.
 
 A resource is anything that an adapter can wrap. This release has adapters for JSON objects, a
-read-only file tree, and tabular files through DuckDB. The plan for v0.2 adds resources that are
-not datasets: a git repository and a browser session ([`ROADMAP.md`](ROADMAP.md)).
+read-only file tree, tabular files through DuckDB, git repositories, and browser sessions. An
+installed package can add more. The core does not know any of these types.
 
 The property that this project tests:
 
@@ -105,6 +105,15 @@ Two runs had failed tool calls, and the model recovered in both from the typed e
 One run for each cell, temperature 0. A `handle_describe` result costs about 1,230 tokens, which is
 the largest single part of each prompt.
 
+### Two kinds of resource, through MCP
+
+The same 9B model got one task through the MCP server, with no handle id: a git repository says
+where its status page is, and the answer is on the release notes of that site. The README of the
+repository names an older version, so the repository alone gives a wrong answer. In 5 of 5 runs
+the model found both handles, read the repository, used the browser, and named the correct
+version. No tool call failed, and the peak prompt was 4,536 tokens. Method and every message:
+[`benchmarks/AGENT_MCP_RESULTS.md`](benchmarks/AGENT_MCP_RESULTS.md).
+
 ## Example
 
 ```python
@@ -146,16 +155,22 @@ The full program is [`examples/quickstart.py`](examples/quickstart.py). It makes
   checks each operation against the grants of the principal. A derived handle gives no more
   than the handles it derives from.
 - **Adapters.** A resource type is one class with six methods: `open`, `describe`, `discover`,
-  `invoke`, `observe`, `release`. The core does not know any resource type. Three adapters
+  `invoke`, `observe`, `release`. The core does not know any resource type. Five adapters
   exist: `memory` (JSON objects), `filesystem` (read-only directory tree), `duckdb` (Parquet,
-  CSV, and DuckDB files).
+  CSV, and DuckDB files), `git` (a repository, read-only), and `browser` (a headless Chromium
+  session). A separate package can add an adapter through the entry point group
+  `datahandles.adapters`.
 - **Registry.** Handles, grants, lineage, jobs, and an operation log live in SQLite and survive
   a restart.
 - **No language model is needed.** The runtime is a plain library.
 
 - **Jobs.** An operation with `background=True` returns a job handle at once. The job is a
-  resource: `job.status`, `job.cancel`, and `job.result` are its capabilities. A job survives a
-  restart of the runtime.
+  resource: `job.status`, `job.cancel`, and `job.result` are its capabilities. Several jobs run
+  at the same time, and a long call on one resource does not hold up another resource. A job
+  survives a restart of the runtime.
+- **Cancel and time limits.** `job.cancel` stops the adapter call of a running job: the git
+  adapter kills its process, the browser adapter cancels the page load. A capability can declare
+  `limits.timeout_ms`; a call past it ends with `OPERATION_TIMEOUT`.
 - **Workers.** A resource can be on a remote worker, next to the data. The same program gives
   the same answers, and no handle shows where it runs.
 
@@ -201,11 +216,11 @@ The server uses stdio and needs the `mcp` package (`pip install -e ".[mcp]"`).
 
 ## State
 
-Version 0.1. Built: the protocol schemas, the runtime, three adapters, composition and graphs,
-the registry, async jobs, the remote worker, the HTTP transport, the MCP adapter, a Python
-client, and a conformance suite. This is the full v0.1 list of the design document.
-[`ROADMAP.md`](ROADMAP.md) has the table with the evidence for each part, the v0.2 plan, and
-the limits of the current code.
+Version 0.2. Built: the protocol schemas, the runtime, five adapters, composition and graphs,
+the registry, async jobs on several threads with cancel and time limits, the remote worker, the
+HTTP transport, the MCP adapter, a Python client, installed adapters, and a conformance suite.
+[`ROADMAP.md`](ROADMAP.md) has the table with the evidence for each part, the plan for later
+versions, and the limits of the current code.
 
 ## Documents
 
@@ -222,12 +237,14 @@ the limits of the current code.
 ```
 python3 -m venv .venv
 .venv/bin/pip install -e ".[dev]"
+.venv/bin/python -m playwright install --only-shell chromium
 .venv/bin/python examples/quickstart.py
 .venv/bin/python examples/remote.py
 .venv/bin/python -m pytest tests -q
 .venv/bin/python tests/mutation_check.py
 .venv/bin/python benchmarks/context_efficiency.py 10000000
 OLLAMA_URL=http://localhost:11434 OLLAMA_MODEL=ornith-1.5:9b .venv/bin/python benchmarks/agent_context.py 1000000
+OLLAMA_URL=http://localhost:11434 OLLAMA_MODEL=ornith-1.5:9b .venv/bin/python benchmarks/agent_mcp.py 5
 ```
 
 - `tests/integration/test_acceptance.py` has one test for each row of the acceptance table in
@@ -236,11 +253,11 @@ OLLAMA_URL=http://localhost:11434 OLLAMA_MODEL=ornith-1.5:9b .venv/bin/python be
   over HTTP, and with a worker. With `DATAHANDLES_URL` and two tokens it runs against any runtime
   that offers the HTTP binding ([`SPECIFICATION.md`](SPECIFICATION.md) section 17). No second
   implementation exists yet.
-- The mutation check removes 41 guards from the source, one at a time, and confirms that a test
+- The mutation check removes 54 guards from the source, one at a time, and confirms that a test
   fails for each.
 - Install from a checkout with `-e`. The schemas load from `spec/protocol/` in the repository tree.
 - The benchmark argument is the largest row count. `100000000` needs about 11 GB of free disk.
-- The agent benchmark needs an Ollama server and a model that supports tool calls.
+- The agent benchmarks need an Ollama server and a model that supports tool calls.
 
 ## Layout
 
@@ -248,13 +265,13 @@ OLLAMA_URL=http://localhost:11434 OLLAMA_MODEL=ornith-1.5:9b .venv/bin/python be
 spec/protocol/        JSON Schemas (the protocol)
 packages/core/        ids, errors, schema validation, graph ordering
 packages/runtime/     runtime, registry, jobs, adapter contract
-packages/adapters/    memory, filesystem, duckdb
+packages/adapters/    memory, filesystem, duckdb, git, browser
 packages/workers/     the remote HTTP worker
 packages/protocols/   HTTP transport, MCP adapter, the tool surface for a language model
 packages/sdk/         Python client
 tests/integration/    acceptance tests
 tests/conformance/    protocol tests that run against any implementation
-tests/unit/           jobs, worker, transports
+tests/unit/           jobs, locks and cancel, worker, transports, adapters
 benchmarks/           benchmarks, results, and the chart (plot.py draws it)
 ```
 

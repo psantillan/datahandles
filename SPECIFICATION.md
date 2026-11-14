@@ -1,6 +1,6 @@
 # DataHandles Protocol Specification
 
-Version 0.1. The key words MUST, MUST NOT, SHOULD, and MAY have the meanings of RFC 2119.
+Version 0.2. The key words MUST, MUST NOT, SHOULD, and MAY have the meanings of RFC 2119.
 
 This file and the JSON Schemas in `spec/protocol/` define the protocol. The Python code in
 `packages/` is one implementation of it. Where the code and this file differ, this file governs
@@ -135,7 +135,8 @@ Schema: `spec/protocol/graphs.schema.json`.
   5. Validate the input (`INVALID_INPUT`).
   6. Resolve and check each `$handle` input.
   7. Check the limit of `execution.mode` against the place of the handle.
-  8. Call the adapter, or put the operation in the job queue.
+  8. Call the adapter, or put the operation in the job queue. If the capability declares
+     `limits.timeout_ms`, the call MUST end at that time (section 18).
   9. Record the operation: principal, target, capability, input, status, duration, bytes, version.
 - An adapter never sees a principal or a grant. An adapter MUST keep each operation inside the
   resource of the handle (for example, a filesystem adapter MUST NOT follow a path or a symlink
@@ -180,6 +181,7 @@ optional `details` for recovery (for example the capability names that the calle
 | `JOB_NOT_FINISHED` | `job.result` was called before the job ended. `retryable` is true, and `details.state` has the state. |
 | `JOB_CANCELLED` | The job was cancelled. It has no result. |
 | `JOB_INTERRUPTED` | The runtime stopped while the job ran, and the job cannot run again safely. |
+| `OPERATION_TIMEOUT` | The call did not end within `limits.timeout_ms` of its capability. `details.timeout_ms` has the limit. The effects of the call are unknown. |
 
 A `HANDLE_NOT_FOUND` error MAY carry `details.did_you_mean`: a list of handle ids that the caller
 probably means (the given text contains the id, or differs from it by a small number of
@@ -206,13 +208,16 @@ for an id that does not exist.
 | `execution.mode` is a limit, not a selector | "Execution location must be an implementation detail." The place is a property of the handle. A caller that needs a guarantee about the place can state it, and gets an error if it does not hold. |
 | No grant inheritance on a `job` handle | With inheritance, each principal with a grant on the target could read the result of another principal's job. |
 | `handle.create` over HTTP needs a separate right | The method makes the runtime open a location that the caller names. A bearer token alone must not give that. |
+| `limits.timeout_ms` is set by the capability, not by the caller | The adapter knows how long an action can take. An operation has no field for it, so a caller cannot remove a limit. |
+| `OPERATION_TIMEOUT` is not `retryable` | A call that passed its limit once will probably pass it again. A write may have taken effect. |
+| A cancel and a time limit are cooperative (section 18) | A runtime cannot stop a thread safely. The adapter knows how to stop its own work: kill a process, cancel a page load. |
 
-## 13. Not in the v0.1 runtime yet
+## 13. Not in the reference runtime yet
 
 The schemas reserve these. The reference runtime does not implement them. See `ROADMAP.md`.
 
 - The result status `waiting`.
-- `execution.priority`, `execution.deadline`, `limits.timeout_ms`, `lifecycle.expires_at`.
+- `execution.priority`, `execution.deadline`, `lifecycle.expires_at`.
 - `continuous` consistency, subscriptions, and an event stream (SSE).
 - Worker heartbeats, leases, and scheduling between workers.
 
@@ -230,6 +235,7 @@ execution mode `async`.
 - A job has one of these states: `queued`, `running`, `completed`, `failed`, `cancelled`. The last
   three are final. A final state MUST NOT change.
 - When the job starts, the runtime MUST do the checks of section 8 again.
+- A runtime MAY run several jobs at the same time. Jobs start in the order of submission.
 - **Idempotency.** The operation id is the key. If a principal submits an operation that is equal
   to one that it submitted before, the runtime MUST return the same job handle and MUST NOT start
   a second job. If the id is known but the operation differs, or the principal differs, the
@@ -240,7 +246,7 @@ A job handle has three capabilities:
 | Capability | Returns | Behavior |
 |---|---|---|
 | `job.status` | value | `state`, `attempts`, `operation_id`, `target`, `capability`, the times, and `error` for a failed job. |
-| `job.cancel` | value | A queued job ends as `cancelled`. For a running job, the runtime discards the output when the adapter returns, and the job ends as `cancelled`. A final state stays. The output is the status. |
+| `job.cancel` | value | A queued job ends as `cancelled`. A running job gets a cancel signal (section 18); when the adapter returns, the runtime discards the output and the job ends as `cancelled`. A final state stays. The output is the status. |
 | `job.result` | what the operation returns | For a completed job: the output, or the handle that the operation made, under the same size limit. For a failed job: the error of the operation. Before the end: `JOB_NOT_FINISHED`. After a cancel: `JOB_CANCELLED`. |
 
 **Restart.** A job MUST survive a runtime restart. After a restart:
@@ -266,8 +272,10 @@ The protocol between a runtime and its workers is not part of this specification
 never sees it. The reference runtime uses this one:
 
 - `POST /v1/task` with a JSON task: `method` (`info`, `open`, `describe`, `discover`, `observe`,
-  `release`, `invoke`), `adapter`, and for `invoke`: `ref`, `capability`, `input`, `refs` (the
-  resolved `$handle` inputs, apart from the caller's values), `eager`.
+  `release`, `invoke`, `cancel`), `adapter`, and for `invoke`: `ref`, `capability`, `input`, `refs`
+  (the resolved `$handle` inputs, apart from the caller's values), `eager`.
+- A `cancel` task names the id of a running `invoke` task and a reason (`cancel` or `timeout`). The
+  worker cancels the adapter call of that task (section 18).
 - The runtime does every check of section 8 before it sends a task. A task carries no principal.
 - Each task has an `id`, an `expires` time (30 seconds after the signature; this number is
   ASSUMED), and the header `X-DataHandles-Signature`: HMAC-SHA256 of the body with a key that the
@@ -338,3 +346,37 @@ a caller cannot see the place of a handle.
 
 The suite ran against the reference runtime only: in process, behind its HTTP server, and with
 the fixture resources on a worker. No second implementation exists.
+
+## 18. Adapters in the reference runtime
+
+This section describes the reference runtime, not the protocol. A second implementation can
+organize its adapters in another way.
+
+An adapter is one class for one kind of resource. It never sees a principal, a grant, or a
+handle id. It has six methods: `open` (a source to the reference of the root resource), `describe`,
+`discover` (the capability descriptors), `invoke`, `observe` (a state summary with `version`),
+and `release`.
+
+**Locks.** `lock_key(ref)` says which calls must not run at the same time. Calls with different
+keys run in parallel. The default (`None`) is one lock for the whole adapter: correct for an
+adapter with one shared connection, such as DuckDB. The memory, filesystem, git, and browser
+adapters return a key for each resource. `discover` never waits for a lock.
+
+**Cancel and time limits.** `invoke` receives a `Call`. The runtime cancels it on `job.cancel` and
+when `limits.timeout_ms` passes. A cancel is cooperative: the adapter registers a hook
+(`call.on_cancel`) or checks `call.cancelled` between steps, then returns or raises. At the time
+limit the runtime gives `OPERATION_TIMEOUT` at once. The adapter thread goes on until the adapter
+honours the cancel, and the runtime discards its output. An adapter that ignores the cancel keeps
+its lock until it returns.
+
+**Installed adapters.** An adapter name is a built-in module (`datahandles.adapters.NAME`) or an
+entry point in the group `datahandles.adapters` of an installed package. A built-in name wins.
+
+| Adapter | Resource | Type | Lock | Cancel |
+|---|---|---|---|---|
+| `memory` | A JSON value in the runtime process | `object` | each object | not needed |
+| `filesystem` | A read-only directory tree | `filesystem` | each tree | not needed |
+| `duckdb` | Parquet, CSV, and DuckDB files | `dataset` | the whole adapter | not built |
+| `git` | A git repository, read-only | `repository` | each repository | kills the git process |
+| `browser` | A headless Chromium session (Playwright) | `browser_session` | each session | cancels the page task |
+

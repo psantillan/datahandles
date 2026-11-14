@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:datahandles:spec:0.1:results.schema.json",
+  "$id": "urn:datahandles:spec:0.2:results.schema.json",
   "title": "OperationResult",
   "type": "object",
   "additionalProperties": false,
@@ -33,7 +33,7 @@
       "description": "The handles that the operation derived. For the status running: the one job handle."
     },
     "error": {
-      "$ref": "urn:datahandles:spec:0.1:errors.schema.json"
+      "$ref": "urn:datahandles:spec:0.2:errors.schema.json"
     },
     "metadata": {
       "type": "object",
@@ -86,28 +86,28 @@
       "description": "A Handle in which each capability is given by its name only. handle.describe returns the full Handle.",
       "properties": {
         "id": {
-          "$ref": "urn:datahandles:spec:0.1:handles.schema.json#/properties/id"
+          "$ref": "urn:datahandles:spec:0.2:handles.schema.json#/properties/id"
         },
         "kind": {
-          "$ref": "urn:datahandles:spec:0.1:handles.schema.json#/properties/kind"
+          "$ref": "urn:datahandles:spec:0.2:handles.schema.json#/properties/kind"
         },
         "type": {
-          "$ref": "urn:datahandles:spec:0.1:handles.schema.json#/properties/type"
+          "$ref": "urn:datahandles:spec:0.2:handles.schema.json#/properties/type"
         },
         "version": {
-          "$ref": "urn:datahandles:spec:0.1:handles.schema.json#/properties/version"
+          "$ref": "urn:datahandles:spec:0.2:handles.schema.json#/properties/version"
         },
         "descriptor": {
-          "$ref": "urn:datahandles:spec:0.1:handles.schema.json#/properties/descriptor"
+          "$ref": "urn:datahandles:spec:0.2:handles.schema.json#/properties/descriptor"
         },
         "consistency": {
-          "$ref": "urn:datahandles:spec:0.1:handles.schema.json#/properties/consistency"
+          "$ref": "urn:datahandles:spec:0.2:handles.schema.json#/properties/consistency"
         },
         "parents": {
-          "$ref": "urn:datahandles:spec:0.1:handles.schema.json#/properties/parents"
+          "$ref": "urn:datahandles:spec:0.2:handles.schema.json#/properties/parents"
         },
         "lifecycle": {
-          "$ref": "urn:datahandles:spec:0.1:handles.schema.json#/properties/lifecycle"
+          "$ref": "urn:datahandles:spec:0.2:handles.schema.json#/properties/lifecycle"
         },
         "capabilities": {
           "type": "array",

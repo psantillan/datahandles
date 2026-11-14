@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:datahandles:spec:0.1:capabilities.schema.json",
+  "$id": "urn:datahandles:spec:0.2:capabilities.schema.json",
   "title": "Capability",
   "type": "object",
   "additionalProperties": false,

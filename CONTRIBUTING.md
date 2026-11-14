@@ -5,7 +5,10 @@
 ```
 python3 -m venv .venv
 .venv/bin/pip install -e ".[dev]"
+.venv/bin/python -m playwright install --only-shell chromium
 ```
+
+The browser tests need the headless browser. The git tests need the `git` program.
 
 ## Before you send a change
 
@@ -21,8 +24,11 @@ test that can fail is not done.
 - The protocol comes first. A change to behavior starts in `SPECIFICATION.md` and `spec/protocol/`.
 - A test in `tests/conformance/` uses protocol methods only (the `Client` and the HTTP binding).
   It must not read the registry or call an adapter, because it must run against any implementation.
-- Keep the core small. A new resource type is a new adapter in `packages/adapters/`. It must not
-  need a change to `packages/core/` or `packages/runtime/`.
+- Keep the core small. A new resource type is a new adapter: in `packages/adapters/`, or in a
+  separate package with an entry point in the group `datahandles.adapters`. It must not need a
+  change to `packages/core/` or `packages/runtime/`.
+- An adapter whose calls can take long must honour a cancel (`SPECIFICATION.md` section 18), and
+  must say in `lock_key` which calls can run at the same time.
 - A capability that returns a value must have an output size limit.
 - An adapter must not run query text from a caller.
 - Each numeric limit needs a stated origin: a specification, a measurement, or the word ASSUMED.
