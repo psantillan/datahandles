@@ -229,7 +229,7 @@ class Runtime:
         ref = a.open(source)
         rec = Record(
             id=new_id("hdl"), kind="resource", type=ref.type, adapter=a.name, locator=ref.locator,
-            version=ref.version, descriptor={"name": name, **a.describe(ref)}, consistency="latest",
+            version=ref.version, descriptor={"name": name, **a.describe(ref)}, consistency=a.consistency,
             persistence=a.persistence, created_at=_now(), released_at=None, owner=principal, parents=[], operation=None,
         )
         self.registry.put(rec)
@@ -289,6 +289,8 @@ class Runtime:
             if execution["mode"] not in ("auto", placed):
                 raise HandleError("INVALID_INPUT", f"handle {rec.id} is {placed}, so execution.mode {execution['mode']} is not possible",
                                   details={"placement": placed})
+            if cap["execution"]["mode"] == "stream":
+                raise HandleError("INVALID_INPUT", f"{cap['name']} gives a stream: use operation.subscribe")
             if queue and (execution.get("async") or cap["execution"]["mode"] == "async"):
                 derived = self._enqueue(principal, rec, more_parents, operation, cap)
                 result["status"], result["handles"] = "running", [self._view(principal, derived, brief=True)]
@@ -389,6 +391,41 @@ class Runtime:
             ref = ResourceRef("graph", {"graph": check_graph(edited)}, _key(edited)[:16])
             return Derived(ref, kind="result", consistency="snapshot")
         raise HandleError("CAPABILITY_NOT_FOUND", capability)
+
+    def subscribe(self, principal: str, operation: dict):
+        """Subscribe to a capability with the execution mode `stream`. Yield one Value output for each event.
+
+        The checks of section 8 run first, and the subscription is recorded as an operation. Each event
+        has the size limit of the capability. Close the generator to stop; the adapter call is then cancelled.
+        """
+        bad = violations("operations", operation)
+        if bad:
+            raise HandleError("INVALID_INPUT", bad[0], details={"violations": bad})
+        rec = self._resolve(principal, operation["target"])
+        cap = self._capability(principal, rec, operation["capability"])
+        check_input(cap["input_schema"], operation["input"])
+        input, _ = self._bind(principal, rec, cap["name"], operation["input"])
+        if cap["execution"]["mode"] != "stream":
+            raise HandleError("INVALID_INPUT", f"{cap['name']} gives no stream: use operation.invoke")
+        if "@" in rec.adapter:
+            raise HandleError("INVALID_INPUT", "a stream runs only on a handle in the runtime process", details={"placement": "remote"})
+        self.registry.log(id=operation["id"], principal=principal, target=rec.id, capability=cap["name"], input=operation["input"],
+                          status="running", error_code=None, started_at=_now(), duration_ms=None, bytes_transferred=None,
+                          source_version=None, result_handle=None)
+        return self._events(rec, cap, input)
+
+    def _events(self, rec: Record, cap: dict, input: dict):
+        call, limit = Call(), cap["limits"]["max_output_bytes"]
+        events = self.adapter(rec.adapter).stream(rec.ref, cap["name"], input, call)
+        try:
+            for event in events:
+                size = len(json.dumps(event.output).encode())
+                if size > limit:
+                    raise HandleError("RESULT_TOO_LARGE", f"an event is {size} bytes and the limit is {limit}")
+                yield {"output": event.output, "version": event.version}
+        finally:
+            call.cancel("cancel")
+            events.close()
 
     def _derive(self, principal: str, rec: Record, more_parents: list, operation: dict, out: Derived, adapter: str | None = None) -> Record:
         parents = [rec.id, *more_parents]
@@ -575,9 +612,13 @@ class Runtime:
                 keys[nid] = _key({"capability": node["operation"]["capability"], "input": node["operation"]["input"], "eager": eager,
                                   "sources": sorted([e.get("input_name", ""), keys[e["from"]]] for e in sources)})
                 try:
-                    action = is_action(self._capability(principal, self._resolve(principal, targets[0]), node["operation"]["capability"]))
+                    cap = self._capability(principal, self._resolve(principal, targets[0]), node["operation"]["capability"])
+                    action, deterministic = is_action(cap), cap["execution"].get("deterministic", False)
                 except HandleError:
-                    action = False  # the run below gives the error
+                    action = deterministic = False  # the run below gives the error
+                if deterministic:  # the version of a resource it reads directly does not change the output
+                    keys[nid] = _key({"deterministic": True, "capability": node["operation"]["capability"], "input": node["operation"]["input"],
+                                      "eager": eager, "sources": sorted([e.get("input_name", ""), structural[e["from"]] if nodes[e["from"]]["kind"] == "resource" else keys[e["from"]]] for e in sources)})
                 key, op_id = (structural[nid] if action else keys[nid]), new_id("op")
                 before = self.registry.node_run(principal, key)
                 if before and not all(self._held_live(principal, h["id"]) for h in before.get("handles", [])):

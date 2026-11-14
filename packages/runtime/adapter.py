@@ -85,6 +85,7 @@ class Known:
 class ResourceAdapter(ABC):
     name: str  # the adapter identifier in the registry
     persistence = "persistent"  # "ephemeral": the resource does not live longer than the runtime process
+    consistency = "latest"  # of a root resource handle. "continuous": a stream whose readings never come back
 
     def lock_key(self, ref: ResourceRef):
         """Which calls must not run at the same time. Calls with different keys can run in parallel.
@@ -125,6 +126,13 @@ class ResourceAdapter(ABC):
 
     def release(self, ref: ResourceRef, kind: str) -> None:
         """Free what the adapter holds for a released handle. Never delete the external resource."""
+
+    def stream(self, ref: ResourceRef, capability: str, input: dict, call: Call):
+        """For a capability with the execution mode `stream`: yield one Value for each event.
+
+        Stop soon after `call` is cancelled. The runtime cancels it when the subscriber stops.
+        """
+        raise HandleError("CAPABILITY_NOT_FOUND", f"{capability} gives no stream")
 
 
 class Locked:

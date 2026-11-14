@@ -13,7 +13,8 @@ HANDLE_INPUT = {
 
 
 def capability(name, description, properties=None, *, required=(), returns="value", write=False,
-               external=False, idempotent=True, max_output_bytes=None, max_items=None, output_schema=None) -> dict:
+               external=False, idempotent=True, max_output_bytes=None, max_items=None, output_schema=None,
+               mode="sync", deterministic=False) -> dict:
     """Build a capability descriptor (spec/protocol/capabilities.schema.json)."""
     if returns == "value" and max_output_bytes is None:
         max_output_bytes = DEFAULT_MAX_OUTPUT_BYTES
@@ -29,8 +30,10 @@ def capability(name, description, properties=None, *, required=(), returns="valu
         "output_schema": output_schema or {},
         "returns": returns,
         "effects": {"read": True, "write": write, "external": external},
-        "execution": {"mode": "sync", "idempotent": idempotent},
+        "execution": {"mode": mode, "idempotent": idempotent},
     }
+    if deterministic:
+        cap["execution"]["deterministic"] = True
     limits = {k: v for k, v in (("max_output_bytes", max_output_bytes), ("max_items", max_items)) if v is not None}
     if limits:
         cap["limits"] = limits

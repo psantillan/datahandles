@@ -68,10 +68,15 @@
             "sync",
             "async",
             "stream"
-          ]
+          ],
+          "description": "sync: one call gives one result. async: the call runs as a job. stream: the caller subscribes (operation.subscribe) and gets one bounded value for each event."
         },
         "idempotent": {
           "type": "boolean"
+        },
+        "deterministic": {
+          "type": "boolean",
+          "description": "true: the output depends only on the input and on which resource the target is, not on the version of the resource. A graph can then reuse the output of this node when the version changes."
         }
       }
     },

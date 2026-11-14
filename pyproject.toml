@@ -20,7 +20,7 @@ dev = ["pytest>=8", "duckdb>=1.0", "mcp>=2.1", "playwright>=1.65.2"]
 
 # The repository tree follows ARCHITECTURE.md section 11. Python sees packages/ as `datahandles`.
 [tool.setuptools]
-packages = ["datahandles", "datahandles.core", "datahandles.runtime", "datahandles.adapters", "datahandles.adapters.memory", "datahandles.adapters.filesystem", "datahandles.adapters.duckdb", "datahandles.adapters.git", "datahandles.adapters.browser", "datahandles.sdk", "datahandles.protocols", "datahandles.workers"]
+packages = ["datahandles", "datahandles.core", "datahandles.runtime", "datahandles.adapters", "datahandles.adapters.memory", "datahandles.adapters.filesystem", "datahandles.adapters.duckdb", "datahandles.adapters.git", "datahandles.adapters.browser", "datahandles.adapters.room", "datahandles.sdk", "datahandles.protocols", "datahandles.workers"]
 
 [tool.setuptools.package-dir]
 datahandles = "packages"

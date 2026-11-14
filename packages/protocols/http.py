@@ -17,7 +17,7 @@ import json
 from pathlib import Path
 
 from ..core import HandleError
-from ..core.wire import post, serve
+from ..core.wire import post, post_events, serve
 
 # method -> (the Runtime method, the parameter names in call order, the optional parameter names)
 METHODS = {
@@ -30,6 +30,7 @@ METHODS = {
     "handle.revoke": ("revoke", ("handle", "from"), ()),
     "resource.observe": ("observe", ("handle",), ()),
     "operation.invoke": ("execute", ("operation",), ()),
+    "operation.subscribe": ("subscribe", ("operation",), ()),
     "graph.export": ("graph", ("handle",), ()),
     "graph.submit": ("submit", ("graph",), ()),
 }
@@ -69,7 +70,10 @@ class Server:
                 raise HandleError("INVALID_INPUT", f"{method} takes a JSON object with {list(required)} and optionally {list(optional)}: {type(e).__name__}: {e}")
             if method == "handle.create" and principal not in self.creators:
                 raise HandleError("CAPABILITY_DENIED", "this principal cannot create resource handles over this transport")
-            return 200, {"result": getattr(self.runtime, name)(principal, *args)}
+            result = getattr(self.runtime, name)(principal, *args)
+            if method == "operation.subscribe":
+                return 200, _events(result)
+            return 200, {"result": result}
         except HandleError as e:
             return 200, {"error": e.to_dict()}
         except Exception as e:  # a fault in one request must not stop the server
@@ -77,6 +81,22 @@ class Server:
 
     def serve(self, host: str = "127.0.0.1", port: int = 0):
         return serve(self.answer, host, port)
+
+
+def _events(events):
+    """Each event as {"result": event}. An error in the middle of the stream is the last event, as {"error": Error}."""
+    try:
+        for event in events:
+            yield {"result": event}
+    except HandleError as e:
+        yield {"error": e.to_dict()}
+    finally:
+        events.close()
+
+
+def _chain(first, rest):
+    yield first
+    yield from rest
 
 
 class HttpRuntime:
@@ -126,6 +146,32 @@ class HttpRuntime:
 
     def execute(self, principal, operation):
         return self._call("operation.invoke", operation=operation)
+
+    def subscribe(self, principal, operation):
+        events = post_events(self.url, "/v1/operation.subscribe", json.dumps({"operation": operation}).encode(),
+                             {"Authorization": f"Bearer {self._token}"})
+        first = next(events)
+        if isinstance(first, tuple):  # a JSON reply: the subscription did not start
+            events.close()
+            status, reply = first
+            if status == 401:
+                raise PermissionError(reply["message"])
+            if "error" in reply:
+                e = reply["error"]
+                raise HandleError(e["code"], e["message"], retryable=e["retryable"], details=e.get("details"))
+            raise ConnectionError(f"HTTP {status} from {self.url}: {reply}")
+        return self._stream(first, events)
+
+    @staticmethod
+    def _stream(first, events):
+        try:
+            for item in _chain(first, events):
+                if "error" in item:
+                    e = item["error"]
+                    raise HandleError(e["code"], e["message"], retryable=e["retryable"], details=e.get("details"))
+                yield item["result"]
+        finally:
+            events.close()
 
     def graph(self, principal, handle_id):
         return self._call("graph.export", handle=handle_id)

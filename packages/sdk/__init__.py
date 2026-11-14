@@ -54,6 +54,20 @@ class Handle:
             raise AttributeError(verb)
         return lambda **input: self.invoke(f"{self.info['type']}.{verb}", input)
 
+    def subscribe(self, capability: str, input: dict | None = None):
+        """Subscribe to a capability with the execution mode `stream`. Yield the output of each event.
+
+        Close the generator (or leave the loop) to stop the subscription.
+        """
+        events = self._client.runtime.subscribe(self._client.principal, {
+            "id": new_id("op"), "target": self.id, "capability": capability, "input": input or {},
+            "execution": {"mode": "auto"}})
+        try:
+            for event in events:
+                yield event["output"]
+        finally:
+            events.close()
+
     def wait(self, timeout: float | None = None, poll: float = 0.05):
         """Wait for the end of a job handle. Return what its operation gives: a Handle, or the bounded output value.
 
