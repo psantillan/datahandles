@@ -243,7 +243,7 @@ The server uses stdio and needs the `mcp` package (`pip install -e ".[mcp]"`).
 
 ## State
 
-Version 0.3.1 (protocol version 0.3). Built: the protocol schemas, the runtime, eight adapters, replayable graphs with
+Version 0.3.2 (protocol version 0.3). Built: the protocol schemas, the runtime, eight adapters, replayable graphs with
 approvals for actions, streams and recorded windows, the registry, async jobs on several threads
 with cancel and time limits, the remote worker, the HTTP transport, the MCP adapter, a Python
 client, installed adapters, and a conformance suite.

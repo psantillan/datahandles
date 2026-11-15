@@ -81,7 +81,7 @@ Steps 1 to 3 change only the runtime and the graph schema. Step 7 changes the pr
 | A generic HTTP JSON API adapter (`api`): live `api.get`, stored responses that never change (`api.fetch`, `response.*`), `api.post` as an action | `tests/unit/test_api_adapter.py` against a local service; `examples/public_apis.py` against Open-Meteo, USGS, and GitHub |
 | The MCP server registers an API from one string (`--register weather=api:https://api.open-meteo.com/v1`) | same file: a source given as one string is the base URL |
 
-## After v0.3.1 (built, not released)
+## v0.3.2: API keys in a header or a query parameter (built)
 
 | Item | Evidence |
 |---|---|
