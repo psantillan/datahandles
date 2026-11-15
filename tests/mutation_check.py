@@ -15,13 +15,13 @@ ADP, PLUG, GIT, WEB = "packages/runtime/adapter.py", "packages/runtime/plugins.p
 
 # (name, file, text to find, replacement)
 MUTANTS = [
-    ("no grant check on a capability", RT, "        if not _allows(held, name):\n            raise", "        if False:\n            raise"),
+    ("no grant check on a capability", RT, "        if not _permits(held, name):\n            raise", "        if False:\n            raise"),
     ("a handle id alone gives access", RT, "if rec is None or not self._held(principal, rec):", "if rec is None:"),
     ("a derived handle gives every capability", RT, "inherited = p if ALL in inherited else inherited if ALL in p else inherited & p", "pass"),
     ("no grant check on a second input", RT, "if not _allows(self._held(principal, other), capability):", "if False:"),
     ("a principal can grant what it does not hold", RT, "        if missing:\n", "        if False:\n"),
     ("revoke does nothing", RT, "        self.registry.revoke(from_, rec.id)", "        pass"),
-    ("discovery lists every capability", RT, "discover(rec.ref) if _allows(held, c[\"name\"])]", "discover(rec.ref)]"),
+    ("discovery lists every capability", RT, "self._discover(rec) if _permits(held, c[\"name\"])]", "self._discover(rec)]"),
     ("no output size check in the runtime", RT, "if size > limit:\n                        raise HandleError(\"RESULT_TOO_LARGE\", f\"the output", "if False:\n                        raise HandleError(\"RESULT_TOO_LARGE\", f\"the output"),
     ("no input schema check", RT, "            check_input(cap[\"input_schema\"], operation[\"input\"])\n", ""),
     ("release does not end derived handles", RT, "rec.released_at is not None or any(", "rec.released_at is not None or False and any("),
@@ -78,7 +78,7 @@ MUTANTS = [
     ("an approval allows more than one run", REG, "            self._all(\"UPDATE approvals SET used_at = ?, used_by = ? WHERE seq = ?\", (at, operation_id, rows[0][\"seq\"]))\n", ""),
     ("an action key has the version of its target", RT, "key, op_id = (structural[nid] if action else keys[nid]), new_id(\"op\")", "key, op_id = keys[nid], new_id(\"op\")"),
     ("a failed node does not block the nodes after it", RT, "            if any(e[\"from\"] in blocked for e in sources):", "            if False:"),
-    ("a graph cancel does not reach its nodes", RT, "\"strategy\": \"eager\" if eager else \"lazy\"}}, queue=False, call=call)", "\"strategy\": \"eager\" if eager else \"lazy\"}}, queue=False, call=None)"),
+    ("a graph cancel does not reach its nodes", RT, "\"strategy\": \"eager\" if eager else \"lazy\"}}, queue=False, call=call, within=within)", "\"strategy\": \"eager\" if eager else \"lazy\"}}, queue=False, call=None, within=within)"),
     ("a deterministic node keeps the source version", RT, "                if deterministic:", "                if False:"),
     ("a stream capability runs through invoke", RT, "            if cap[\"execution\"][\"mode\"] == \"stream\":", "            if False:"),
     ("subscribe takes a capability that is not a stream", RT, "        if cap[\"execution\"][\"mode\"] != \"stream\":", "        if False:"),

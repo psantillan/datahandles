@@ -168,6 +168,9 @@ Operation log:
   log still reads each row after the cursor.
 - A graph node that a run reuses writes no row. The `graph.run` result shows it as `reused`.
 - A failed `handle.create` has no handle, so no view shows its row.
+- A released handle gives `HANDLE_RELEASED` to each operation, its log reads included. Its rows
+  stay in the view of an ancestor. A released resource handle has no ancestor, so no view shows
+  its rows after the release, the `release` row included.
 - A principal whose grants were revoked can no longer read its own rows on that handle.
 
 Data:
