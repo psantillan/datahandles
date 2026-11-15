@@ -97,6 +97,11 @@ Steps 1 to 3 change only the runtime and the graph schema. Step 7 changes the pr
 - Agent-as-resource, capability delegation, cross-runtime references, a TypeScript SDK
   (`ARCHITECTURE.md` section 14, v0.3).
 - A second implementation of the protocol.
+- A protocol method that reads the operation log, with a size limit, pages, and a rule for which
+  rows each principal sees. Today only the in-process `registry.history` reads it. An orchestrator
+  needs the log as memory, and an auditor needs it to see each call. The log has no rows for
+  `handle.create`, `handle.grant`, `handle.revoke`, and `handle.release`, so an audit would not
+  see a change of grants.
 
 ## Known limits of the 0.3 code
 
