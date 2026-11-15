@@ -25,3 +25,16 @@ jobs:
       - run: pip install -e ".[dev]" ${{ matrix.deps }}
       - run: python -m playwright install --with-deps --only-shell chromium
       - run: python -m pytest tests -q
+
+  # A plain install (not editable) must carry the protocol schemas. The import runs outside the repository.
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m venv "$RUNNER_TEMP/venv"
+      - run: '"$RUNNER_TEMP/venv/bin/pip" install .'
+      - run: '"$RUNNER_TEMP/venv/bin/python" -c "import datahandles, datahandles.core.schema as s; assert len(s._SCHEMAS) == 6, s._SCHEMAS.keys(); print(datahandles.__file__)"'
+        working-directory: ${{ runner.temp }}

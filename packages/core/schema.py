@@ -1,17 +1,20 @@
 """Load the protocol schemas from spec/protocol and validate protocol objects against them.
 
 The schemas are the definition of the protocol. This module holds no second copy of them.
+An installed distribution has them as the data of the package `datahandles.spec`, which
+pyproject.toml maps to the directory spec/protocol.
 """
 import json
-from pathlib import Path
+from importlib.resources import files
 
 from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry, Resource
 
 from .errors import HandleError
 
-SPEC_DIR = Path(__file__).resolve().parents[2] / "spec" / "protocol"
-_SCHEMAS = {p.name.split(".")[0]: json.loads(p.read_text()) for p in sorted(SPEC_DIR.glob("*.schema.json"))}
+SPEC_DIR = files("datahandles.spec")
+_SCHEMAS = {p.name.split(".")[0]: json.loads(p.read_text()) for p in sorted(SPEC_DIR.iterdir(), key=lambda p: p.name)
+            if p.name.endswith(".schema.json")}
 _REGISTRY = Registry().with_resources((s["$id"], Resource.from_contents(s)) for s in _SCHEMAS.values())
 _VALIDATORS = {
     k: Draft202012Validator(s, registry=_REGISTRY, format_checker=FormatChecker()) for k, s in _SCHEMAS.items()
