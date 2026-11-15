@@ -88,7 +88,25 @@ Steps 1 to 3 change only the runtime and the graph schema. Step 7 changes the pr
 | An API key in a named header (`token_header`) or in a query parameter (`token_query`) | `tests/unit/test_api_adapter.py`; `examples/public_apis.py` against the NASA API with its public demo key |
 | A token value that cannot go in a request gives an error without the value | same file. Before, the error message of the Python HTTP library carried the value to the caller. |
 
-## v0.4 and later
+## v0.4: The operation log as capabilities (built)
+
+Goal: an orchestrator reads its own log rows as memory, and an auditor reads every call on a
+resource, through the same grants and tools as each other capability.
+
+| Item | Evidence |
+|---|---|
+| `log.own` and `log.audit` on each handle (`SPECIFICATION.md` section 19) | `tests/unit/test_operation_log.py`; `tests/conformance/test_protocol.py` runs the rules in process, over HTTP, and with a worker |
+| The audit view follows `parents` to handles that other principals made, and rows made inside a graph run (`within`) | same file: a second principal that holds `log.audit` on a graph sees which node failed in a run by a third principal |
+| An owner grants the audit view alone | same file |
+| Pages with a cursor that is a row id, filters, a size limit, a cut input with the hash of the whole | same file |
+| Log rows for `handle.create`, `handle.release`, `handle.grant`, and `handle.revoke`, also when they fail | same file |
+| A `job.result` row names the handle that the job made; a stream row ends when the subscriber stops; a graph action that waits has a row | same file. Before, these rows had no handle, stayed `running`, or did not exist. |
+| A registry from v0.3 gets the new log columns when it opens | same file |
+
+The brief `handle.describe` of a handle now lists `log.own`, and `log.audit` for a principal that
+holds it. In the brief form they cost 138 and 157 bytes. The agent benchmarks ran before this change.
+
+## v0.5 and later
 
 - Worker discovery, heartbeats, leases, and scheduling between workers. One handle is on one worker.
 - Checkpoint and resume inside one job.
@@ -97,13 +115,8 @@ Steps 1 to 3 change only the runtime and the graph schema. Step 7 changes the pr
 - Agent-as-resource, capability delegation, cross-runtime references, a TypeScript SDK
   (`ARCHITECTURE.md` section 14, v0.3).
 - A second implementation of the protocol.
-- A protocol method that reads the operation log, with a size limit, pages, and a rule for which
-  rows each principal sees. Today only the in-process `registry.history` reads it. An orchestrator
-  needs the log as memory, and an auditor needs it to see each call. The log has no rows for
-  `handle.create`, `handle.grant`, `handle.revoke`, and `handle.release`, so an audit would not
-  see a change of grants.
 
-## Known limits of the 0.3 code
+## Known limits of the 0.4 code
 
 Transport and workers:
 
@@ -145,6 +158,17 @@ Graphs:
   value nodes fails with `RESULT_TOO_LARGE`.
 - A stream runs only on a handle in the runtime process, not on a remote worker.
 - The room adapter is a simulation. Its physics numbers are assumed, not measured.
+
+Operation log:
+
+- The log has no retention rule. It grows until the operator removes the registry file.
+- A row keeps the full input of its operation, for example the value of an `object.set` or the
+  body of an `api.post`.
+- A read scans the log from the cursor. A filter on a column helps, but a narrow view of a large
+  log still reads each row after the cursor.
+- A graph node that a run reuses writes no row. The `graph.run` result shows it as `reused`.
+- A failed `handle.create` has no handle, so no view shows its row.
+- A principal whose grants were revoked can no longer read its own rows on that handle.
 
 Data:
 

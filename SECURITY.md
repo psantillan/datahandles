@@ -28,6 +28,10 @@ vulnerability.
   cannot set that query parameter. A token value with a control character gives an error that
   does not show the value.
 - Each value output has a size limit that the runtime enforces.
+- A principal reads only its own log rows (`log.own`) unless it holds `log.audit`. A principal
+  that holds nothing on a handle gets `HANDLE_NOT_FOUND` for its log, as for each operation. A
+  log cursor from another view is refused like a cursor that does not exist, and no view shows a
+  counter of all rows.
 - The HTTP transport takes the principal from a bearer token, never from the request body. Only
   principals that the operator lists can create a resource handle.
 - A task to a worker carries an HMAC-SHA256 signature, an expiry time, and an id that the worker
@@ -53,6 +57,11 @@ vulnerability.
   process can read. Give the right to register only to trusted principals.
 - The base URL of an api handle can be any address that the runtime process can reach, local
   network addresses included. Give the right to register only to trusted principals.
+- A principal that holds `log.audit` on a handle sees the input of each call by each principal on
+  that handle and on each handle made from it, and the source of each `handle.create`. The owner
+  holds `log.audit`, and a grant of `*` gives it too.
+- The registry file holds the full input of each operation in its log. Protect it as you protect
+  the data.
 - The api adapter sends its token to a plain `http` base URL too. Use an `https` base URL with a token.
 - The api adapter does not search a response body for the key. A service that repeats the request
   URL or its headers in a body shows the key to the caller.

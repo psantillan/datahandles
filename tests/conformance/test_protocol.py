@@ -53,7 +53,7 @@ def test_discovery_lists_only_what_the_principal_holds(target):
     assert {"object.get", "object.keys", "object.select", "object.set", "object.snapshot", "object.equals"} <= set(config.discover())
     config.grant(target.bob_name, ["object.keys", "object.get"])
     theirs = target.bob.resolve(config.id)
-    assert sorted(theirs.discover()) == ["object.get", "object.keys"]
+    assert sorted(theirs.discover()) == ["log.own", "object.get", "object.keys"]  # each holder may read its own log rows
     assert violations("handles", theirs.info) == []
     assert [h.id for h in target.bob.handles()] == [config.id]
 
@@ -160,7 +160,7 @@ def test_an_asynchronous_operation_is_a_job_handle(target):
     assert violations("results", accepted) == [] and accepted["status"] == "running" and "output" not in accepted
     job = target.paul.resolve(accepted["handles"][0]["id"])
     assert violations("handles", job.info) == [] and (job.info["kind"], job.info["type"]) == ("job", "job")
-    assert sorted(job.discover()) == ["job.cancel", "job.result", "job.status"] and config.id in job.info["parents"]
+    assert sorted(job.discover()) == ["job.cancel", "job.result", "job.status", "log.audit", "log.own"] and config.id in job.info["parents"]
     assert job.wait(timeout=30) == {"b": 1} == config.invoke("object.get", {"path": ["a"]})
     status = job.invoke("job.status")
     assert (status["state"], status["attempts"], status["operation_id"]) == ("completed", 1, operation["id"])
@@ -194,3 +194,25 @@ def test_the_http_binding_takes_the_principal_from_the_token(target):
     assert status == 200 and reply["error"]["code"] == "HANDLE_NOT_FOUND" and violations("errors", reply["error"]) == []
     status, reply = send("handle.describe", {"handle": config.id, "principal": "paul"}, target.token)
     assert status == 200 and reply["error"]["code"] == "INVALID_INPUT"
+
+
+def test_the_operation_log_shows_own_rows_to_each_holder_and_every_row_to_an_audit_holder(target):
+    config = target.make("config", {"a": 1, "b": [1, 2]})
+    config.grant(target.bob_name, ["object.get", "object.select"])
+    theirs = target.bob.resolve(config.id)
+    part = theirs.invoke("object.select", {"path": ["b"]})  # a handle that bob owns, made from paul's handle
+    part.invoke("object.get", {"path": [0]})
+    assert code(call(theirs, "object.get", {"path": ["nope"]})) == "INVALID_INPUT"
+    own = call(theirs, "log.own", {"status": "failed"})["output"]
+    assert [(r["principal"], r["capability"], r["error_code"]) for r in own["rows"]] == [(target.bob_name, "object.get", "INVALID_INPUT")]
+    assert code(call(theirs, "log.audit")) == "CAPABILITY_DENIED"
+    audit = call(config, "log.audit", {"kind": "operation", "capability": "object.get"})["output"]["rows"]
+    assert [r["target"] for r in audit] == [part.id, config.id]  # the audit view follows the parents edges
+    assert all(set(r) >= {"entry", "kind", "principal", "status", "input_sha256"} and "seq" not in r for r in audit)
+    grants = call(config, "log.audit", {"kind": "grant"})["output"]["rows"]
+    assert [r["input"] for r in grants] == [{"to": target.bob_name, "capabilities": ["object.get", "object.select"]}]
+    page = call(config, "log.audit", {"limit": 1})["output"]
+    assert len(page["rows"]) == 1 and call(config, "log.audit", {"after": page["next"], "limit": 1})["output"]["rows"][0] != page["rows"][0]
+    # A principal that holds nothing on a handle gets the answer for an id that does not exist.
+    stranger = target.make("private", {"c": 3})
+    assert raised(target.bob.resolve, stranger.id) == "HANDLE_NOT_FOUND"

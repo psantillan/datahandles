@@ -55,7 +55,7 @@ def main() -> None:
 </style>""",
            f'<rect class="bg" width="{W}" height="{H}" rx="6"/>',
            f'<text class="t1" x="{LEFT}" y="26" font-size="15" font-weight="600">One question, five operations: bytes that reach the caller</text>',
-           f'<text class="t2" x="{LEFT}" y="44" font-size="12">Log scales. The dataset grows 10,000 times. The protocol bytes grow by 9 bytes.</text>']
+           f'<text class="t2" x="{LEFT}" y="44" font-size="12">Log scales. The dataset grows 10,000 times. The protocol bytes grow by {runs[-1]["protocol_bytes"] - runs[0]["protocol_bytes"]} bytes.</text>']
     for e in range(Y_MIN, Y_MAX + 1, 2):
         out.append(f'<line class="grid" x1="{LEFT}" x2="{W - RIGHT}" y1="{y(10 ** e):.1f}" y2="{y(10 ** e):.1f}" stroke-width="1"/>')
         out.append(f'<text class="t2" x="{LEFT - 10}" y="{y(10 ** e) + 4:.1f}" font-size="11" text-anchor="end">{size_label(e)}</text>')

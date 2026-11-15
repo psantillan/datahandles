@@ -75,5 +75,5 @@ def start(state_dir):
 
 
 def ran_nodes(runtime, since: int) -> list[str]:
-    """The capabilities that ran (operation log rows) after row number `since`."""
-    return [op["capability"] for op in runtime.registry.history()[since:]]
+    """The capabilities that ran (operation log rows) after row number `since`. A waiting action did not run."""
+    return [op["capability"] for op in runtime.registry.history()[since:] if op["status"] != "waiting"]

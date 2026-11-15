@@ -71,7 +71,7 @@ def test_discovery_lists_only_the_permitted_capabilities(paul, data):
     events = paul.register("events", adapter="duckdb", source=data["events"])
     events.grant("bob", ["dataset.count", "dataset.schema"])
     bob = Client(paul.runtime, "bob").resolve(events.id)
-    assert sorted(bob.discover()) == ["dataset.count", "dataset.schema"]
+    assert sorted(bob.discover()) == ["dataset.count", "dataset.schema", "log.own"]
     assert "dataset.head" in events.discover()
     assert violations("handles", bob.info) == []
 
@@ -171,7 +171,7 @@ class Clock(ResourceAdapter):
 def test_a_new_adapter_works_with_no_change_to_the_core(tmp_path):
     paul = Client(Runtime(tmp_path, adapters=(Clock(),)), "paul")
     clock = paul.register("clock", adapter="clock", source={})
-    assert clock.discover() == ["clock.tick", "clock.fail"]
+    assert clock.discover() == ["clock.tick", "clock.fail", "log.own", "log.audit"]
     assert clock.invoke("clock.tick") == {"ticks": 1} and clock.observe() == {"version": "1"}
     assert code(call(clock, "clock.tick", {"extra": 1})) == "INVALID_INPUT"
 
@@ -276,7 +276,7 @@ def test_a_failed_operation_is_recorded_and_a_release_is_final(tmp_path, data):
     failed = call(clock, "clock.fail")
     assert code(failed) == "ADAPTER_ERROR" and "broken" in failed["error"]["message"]
     assert clock.invoke("clock.tick") == {"ticks": 1}  # the runtime continues
-    log = paul.runtime.registry.history()
+    log = [r for r in paul.runtime.registry.history() if r["kind"] == "operation"]
     assert [(r["id"], r["status"], r["error_code"]) for r in log][0] == (failed["operation_id"], "failed", "ADAPTER_ERROR")
 
     events = paul.register("events", adapter="duckdb", source=data["events"])

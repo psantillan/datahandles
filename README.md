@@ -49,15 +49,15 @@ The agent sees only the left side of this picture. Rows, files, and credentials 
 One question (filter, join, aggregate, sort, bounded read) on a Parquet file that grows from
 10,000 rows to 100,000,000 rows. Full method and all rows: [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md).
 
-![Bytes that reach the caller: rows as JSON grow from 878 kB to 9.2 GB; protocol bytes stay at 3.7 kB](benchmarks/context_efficiency.svg)
+![Bytes that reach the caller: rows as JSON grow from 878 kB to 9.2 GB; protocol bytes stay at 3.8 kB](benchmarks/context_efficiency.svg)
 
 | Event rows | Rows as JSON | Protocol bytes to caller | Answer bytes | Time |
 |---:|---:|---:|---:|---:|
-| 10,000 | 877,653 B | 3,730 B | 147 B | 0.073 s |
-| 1,000,000 | 89,794,093 B | 3,732 B | 146 B | 0.106 s |
-| 100,000,000 | 9,179,443,674 B | 3,739 B | 146 B | 1.681 s |
+| 10,000 | 877,653 B | 3,825 B | 147 B | 0.07 s |
+| 1,000,000 | 89,794,093 B | 3,826 B | 146 B | 0.083 s |
+| 100,000,000 | 9,179,443,674 B | 3,835 B | 146 B | 1.29 s |
 
-The dataset grows 10,000 times. The bytes that go to the caller grow by 9.
+The dataset grows 10,000 times. The bytes that go to the caller grow by 10.
 
 "Protocol bytes" is the JSON size of everything that the runtime returns for the question: five
 operation results and four handle summaries. One machine, one run for each size, DuckDB 2.0.0.
@@ -172,6 +172,10 @@ The full program is [`examples/quickstart.py`](examples/quickstart.py). It makes
   `datahandles.adapters`.
 - **Registry.** Handles, grants, lineage, jobs, and an operation log live in SQLite and survive
   a restart.
+- **Operation log.** Each handle has two log capabilities. `log.own` gives the caller its own
+  rows: what it ran, what failed, and which handle each call made. `log.audit` gives the rows of
+  each principal on the handle and on each handle made from it, and the owner can grant it alone.
+  Grants, revokes, creates, and releases are rows too.
 - **No language model is needed.** The runtime is a plain library.
 
 - **Jobs.** An operation with `background=True` returns a job handle at once. The job is a
@@ -243,8 +247,8 @@ The server uses stdio and needs the `mcp` package (`pip install -e ".[mcp]"`).
 
 ## State
 
-Version 0.3.2 (protocol version 0.3). Built: the protocol schemas, the runtime, eight adapters, replayable graphs with
-approvals for actions, streams and recorded windows, the registry, async jobs on several threads
+Version 0.4.0 (protocol version 0.4). Built: the protocol schemas, the runtime, eight adapters, replayable graphs with
+approvals for actions, streams and recorded windows, the registry and its operation log, async jobs on several threads
 with cancel and time limits, the remote worker, the HTTP transport, the MCP adapter, a Python
 client, installed adapters, and a conformance suite.
 [`ROADMAP.md`](ROADMAP.md) has the table with the evidence for each part, the plan for later
@@ -283,7 +287,7 @@ OLLAMA_URL=http://localhost:11434 OLLAMA_MODEL=ornith-1.5:9b .venv/bin/python be
   over HTTP, and with a worker. With `DATAHANDLES_URL` and two tokens it runs against any runtime
   that offers the HTTP binding ([`SPECIFICATION.md`](SPECIFICATION.md) section 17). No second
   implementation exists yet.
-- The mutation check removes 84 guards from the source, one at a time, and confirms that a test
+- The mutation check removes 101 guards from the source, one at a time, and confirms that a test
   fails for each.
 - Install from a checkout with `-e`. The schemas load from `spec/protocol/` in the repository tree.
 - The benchmark argument is the largest row count. `100000000` needs about 11 GB of free disk.

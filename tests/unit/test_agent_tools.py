@@ -13,7 +13,7 @@ def test_a_tool_caller_can_discover_compose_and_recover(tmp_path):
     assert [t["function"]["name"] for t in TOOLS] == ["handle_describe", "handle_invoke"]
 
     described = dispatch(agent, "handle_describe", {"handle": config.id})
-    assert [c["name"] for c in described["capabilities"]] == ["object.get", "object.select"]  # only what the agent holds
+    assert [c["name"] for c in described["capabilities"]] == ["object.get", "object.select", "log.own"]  # only what the agent holds
     assert "input_schema" not in described["capabilities"][0] and "ana" not in json.dumps(described)  # brief: no schemas
     one = dispatch(agent, "handle_describe", {"handle": config.id, "capability": "object.get"})
     assert one["capability"] == "object.get" and "path" in one["input_schema"]["properties"]
@@ -27,7 +27,7 @@ def test_a_tool_caller_can_discover_compose_and_recover(tmp_path):
 
     # Each failure is a typed value that the caller can act on. None is an exception.
     denied = dispatch(agent, "handle_invoke", {"handle": config.id, "capability": "object.set", "input": {"path": ["x"], "value": 1}})
-    assert denied["error"]["code"] == "CAPABILITY_DENIED" and denied["error"]["details"]["permitted"] == ["object.get", "object.select"]
+    assert denied["error"]["code"] == "CAPABILITY_DENIED" and denied["error"]["details"]["permitted"] == ["log.own", "object.get", "object.select"]
     assert dispatch(agent, "handle_invoke", {"handle": config.id, "capability": "object.get", "input": {"nope": 1}})["error"]["code"] == "INVALID_INPUT"
     assert dispatch(agent, "handle_invoke", {"handle": "hdl_" + "0" * 26, "capability": "object.get"})["error"]["code"] == "HANDLE_NOT_FOUND"
     assert dispatch(agent, "handle_invoke", {"handle": 7, "capability": "object.get"})["error"]["code"] == "INVALID_INPUT"

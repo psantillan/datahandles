@@ -56,7 +56,7 @@ def test_a_background_operation_gives_a_job_handle_and_then_the_result(tmp_path)
     assert accepted["status"] == "running" and "output" not in accepted
     job = paul.resolve(accepted["handles"][0]["id"])
     assert violations("handles", job.info) == []
-    assert job.info["kind"] == "job" and sorted(job.discover()) == ["job.cancel", "job.result", "job.status"]
+    assert job.info["kind"] == "job" and sorted(job.discover()) == ["job.cancel", "job.result", "job.status", "log.audit", "log.own"]
     assert adapter.entered.wait(10)
     assert state(job) == "running"
     with pytest.raises(HandleError) as e:

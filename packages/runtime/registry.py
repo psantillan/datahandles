@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS grants (
 CREATE TABLE IF NOT EXISTS operations (
   seq INTEGER PRIMARY KEY, id TEXT NOT NULL, principal TEXT NOT NULL, target TEXT, capability TEXT, input TEXT,
   status TEXT NOT NULL, error_code TEXT, started_at TEXT NOT NULL, duration_ms REAL,
-  bytes_transferred INTEGER, source_version TEXT, result_handle TEXT);
+  bytes_transferred INTEGER, source_version TEXT, result_handle TEXT,
+  entry TEXT, within TEXT, kind TEXT NOT NULL DEFAULT 'operation');
 CREATE TABLE IF NOT EXISTS jobs (
   seq INTEGER PRIMARY KEY, id TEXT UNIQUE NOT NULL, handle_id TEXT NOT NULL, principal TEXT NOT NULL,
   operation TEXT NOT NULL, capability TEXT NOT NULL, state TEXT NOT NULL, attempts INTEGER NOT NULL,
@@ -72,6 +73,13 @@ class Registry:
         self.db = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(_DDL)
+        # A registry from v0.3 has no entry, within, or kind column in its log. Each old row gets a random entry id.
+        columns = {r[1] for r in self.db.execute("PRAGMA table_info(operations)")}
+        for name, ddl in (("entry", "TEXT"), ("within", "TEXT"), ("kind", "TEXT NOT NULL DEFAULT 'operation'")):
+            if name not in columns:
+                self.db.execute(f"ALTER TABLE operations ADD COLUMN {name} {ddl}")
+        self.db.execute("UPDATE operations SET entry = 'log_' || upper(hex(randomblob(13))) WHERE entry IS NULL")
+        self.db.execute("CREATE UNIQUE INDEX IF NOT EXISTS operations_entry ON operations (entry)")
 
     def _all(self, sql: str, args=()) -> list:
         with self._lock:
@@ -129,11 +137,31 @@ class Registry:
             row["input"] = json.dumps(row["input"])
         self._insert("operations", row)
 
+    def finish(self, entry: str, **row) -> None:
+        """Set the end state of a log row that was written when its operation started (a stream)."""
+        self._all(f"UPDATE operations SET {', '.join(f'{k} = ?' for k in row)} WHERE entry = ?", [*row.values(), entry])
+
     def history(self, result_handle: str | None = None) -> list[dict]:
         q, args = "SELECT * FROM operations", ()
         if result_handle:
             q, args = q + " WHERE result_handle = ?", (result_handle,)
         return [dict(r) for r in self._all(q + " ORDER BY seq", args)]
+
+    def entry(self, entry: str) -> dict | None:
+        rows = self._all("SELECT * FROM operations WHERE entry = ?", (entry,))
+        return dict(rows[0]) if rows else None
+
+    def log_page(self, after: str | None, filters: dict, size: int) -> list[dict]:
+        """Up to `size` log rows after the row `after`, oldest first, that match each filter (column = value)."""
+        where, args = [], []
+        if after is not None:
+            where.append("seq > (SELECT seq FROM operations WHERE entry = ?)")
+            args.append(after)
+        for column, value in filters.items():
+            where.append(f"{column} = ?")
+            args.append(value)
+        q = "SELECT * FROM operations" + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY seq LIMIT ?"
+        return [dict(r) for r in self._all(q, [*args, size])]
 
     # ---- jobs ---------------------------------------------------------------------------------
 

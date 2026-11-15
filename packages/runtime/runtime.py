@@ -6,6 +6,7 @@ The caller of `execute` supplies the principal. A transport (HTTP, MCP) must aut
 Placement: a handle lives where its resource is. The adapter name `duckdb` is the adapter in this
 process. The name `duckdb@w1` is the same adapter on the registered remote worker `w1`.
 """
+import hashlib
 import json
 import os
 import threading
@@ -13,7 +14,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from ..core import HandleError, check_input, digest as _key, edit_distance, new_id, topological_order, violations
+from ..core import HandleError, capability, check_input, digest as _key, edit_distance, new_id, topological_order, violations
 from .adapter import Call, Derived, Known, Locked, ResourceAdapter, ResourceRef, Value
 from .graphs import GraphAdapter, check as check_graph, is_action
 from .jobs import JobAdapter
@@ -24,6 +25,26 @@ ALL = "*"  # a grant on every capability of a handle
 # An id that is this many edits from the given text is offered as a correction. One dropped, added,
 # or changed character is 1 edit. Two swapped neighbors are 2 edits.
 NEAR = 2
+
+# The operation log (SPECIFICATION.md section 19). The runtime offers these two capabilities on each handle.
+LOG_OWN, LOG_AUDIT = "log.own", "log.audit"
+# ASSUMED: 20 rows in a page by default and 200 at most; 512 bytes of input text in a row with a larger
+# input; 128 characters of a target or capability that a caller typed. No measurement is behind them.
+LOG_PAGE, LOG_PAGE_MAX, LOG_INPUT_BYTES, LOG_TEXT = 20, 200, 512, 128
+LOG_KINDS = ["operation", "create", "release", "grant", "revoke"]
+_LOG_INPUT = {
+    "after": {"type": "string", "description": "The `next` value of the page before."},
+    "limit": {"type": "integer", "minimum": 1, "maximum": LOG_PAGE_MAX, "default": LOG_PAGE},
+    "target": {"type": "string", "description": "Only rows on this handle id."},
+    "capability": {"type": "string"},
+    "status": {"type": "string", "description": "For example failed or waiting."},
+    "error_code": {"type": "string"},
+    "kind": {"enum": LOG_KINDS},
+}
+LOG_CAPS = [
+    capability(LOG_OWN, "Read your log rows on this handle and on the handles made from it, oldest first.", _LOG_INPUT),
+    capability(LOG_AUDIT, "Read the log rows of each principal on this handle and on the handles made from it, oldest first.", _LOG_INPUT),
+]
 
 
 def _now() -> str:
@@ -57,6 +78,30 @@ def _structural_keys(graph: dict) -> dict:
 
 def _allows(held: set, capability: str) -> bool:
     return ALL in held or capability in held
+
+
+def _permits(held: set, capability: str) -> bool:
+    """A principal that holds anything on a handle may read its own log rows there."""
+    return capability == LOG_OWN or _allows(held, capability)
+
+
+def _log_view(row: dict) -> dict:
+    """One log row as a caller sees it. A large input gives its first bytes, and each input gives its hash."""
+    view = {"entry": row["entry"], "kind": row["kind"], "principal": row["principal"]}
+    if row["kind"] == "operation":
+        view["operation_id"] = row["id"]
+    for k in ("within", "target", "capability", "status", "error_code", "started_at", "duration_ms",
+              "bytes_transferred", "source_version", "result_handle"):
+        if row[k] is not None:
+            view[k] = row[k][:LOG_TEXT] if k in ("target", "capability") else row[k]
+    canonical = json.dumps(json.loads(row["input"]) if row["input"] is not None else None, sort_keys=True, separators=(",", ":"))
+    view["input_sha256"] = hashlib.sha256(canonical.encode()).hexdigest()
+    if len(canonical.encode()) <= LOG_INPUT_BYTES:
+        view["input"] = json.loads(canonical)
+    else:
+        view.update(truncated=True, input_bytes=len(canonical.encode()),
+                    input_preview=canonical.encode()[:LOG_INPUT_BYTES].decode("utf-8", "ignore"))
+    return view
 
 
 class Runtime:
@@ -129,6 +174,79 @@ class Runtime:
     def _released(self, rec: Record) -> bool:
         return rec.released_at is not None or any(self._released(self.registry.get(p)) for p in rec.parents)
 
+    def _discover(self, rec: Record) -> list[dict]:
+        """The capabilities of a handle: those of its adapter, and the log capabilities of the runtime."""
+        names = {c["name"] for c in LOG_CAPS}
+        return [*(c for c in self.adapter(rec.adapter).discover(rec.ref) if c["name"] not in names), *LOG_CAPS]
+
+    def _descends(self, target, handle_id: str, memo: dict) -> bool:
+        """True if `target` is the handle `handle_id` or a handle made from it, through the `parents` edges."""
+        if target == handle_id:
+            return True
+        if target not in memo:
+            memo[target] = False
+            rec = self.registry.get(target) if isinstance(target, str) else None
+            memo[target] = rec is not None and any(self._descends(p, handle_id, memo) for p in rec.parents)
+        return memo[target]
+
+    def _in_scope(self, row: dict | None, handle_id: str, memo: dict) -> bool:
+        """A log row is in the scope of a handle if its target descends from the handle, or if a row that
+        it was made inside (`within`, for example the graph.run of a graph node) is in the scope."""
+        while row is not None:
+            if self._descends(row["target"], handle_id, memo):
+                return True
+            row = self.registry.entry(row["within"]) if row["within"] else None
+        return False
+
+    def _read_log(self, principal: str, rec: Record, capability: str, input: dict, max_bytes: int) -> Value:
+        """One page of the log rows in the scope of `rec`. log.own gives the rows of the caller only."""
+        filters = {k: input[k] for k in ("target", "capability", "status", "error_code", "kind") if k in input}
+        if capability == LOG_OWN:
+            filters["principal"] = principal
+        memo, limit, after = {}, input.get("limit", LOG_PAGE), input.get("after")
+
+        def visible(row):  # the filters above already hold only the caller's rows for log.own
+            return self._in_scope(row, rec.id, memo)
+        start = self.registry.entry(after) if after is not None else None
+        if after is not None and not (start and visible(start) and (capability == LOG_AUDIT or start["principal"] == principal)):
+            raise HandleError("INVALID_INPUT", f"after: no log row {after!r} in this view")
+        rows, size, budget, cursor, more = [], 0, max_bytes - 1024, after, False
+        while not more:
+            page = self.registry.log_page(cursor, filters, 500)
+            if not page:
+                break
+            for row in page:
+                if not visible(row):
+                    cursor = row["entry"]
+                    continue
+                view = _log_view(row)
+                n = len(json.dumps(view).encode()) + 2
+                if len(rows) == limit or size + n > budget:
+                    more = True
+                    break
+                rows.append(view)
+                size, cursor = size + n, row["entry"]
+        out = {"rows": rows}
+        if more:
+            out["next"] = rows[-1]["entry"]
+        return Value(out, "")
+
+    def _lifecycle(self, principal: str, kind: str, target, input: dict, fn):
+        """Do one lifecycle method (create, release, grant, revoke) and write its log row, also when it fails."""
+        started, t0, status, code, out = _now(), time.perf_counter(), "completed", None, None
+        try:
+            out = fn()
+            return out
+        except Exception as e:
+            status, code = "failed", getattr(e, "code", "ADAPTER_ERROR")
+            raise
+        finally:
+            made = out["id"] if kind == "create" and out else None
+            entry = new_id("log")
+            self.registry.log(entry=entry, id=entry, kind=kind, principal=principal, target=made or (target and str(target)),
+                              capability=None, input=input, status=status, error_code=code, started_at=started,
+                              duration_ms=round((time.perf_counter() - t0) * 1000, 3), result_handle=made)
+
     def _not_found(self, principal: str, given, message: str) -> HandleError:
         """Make a HANDLE_NOT_FOUND error. Offer the ids that the caller probably means.
 
@@ -155,11 +273,11 @@ class Runtime:
 
     def _capability(self, principal: str, rec: Record, name: str) -> dict:
         held = self._held(principal, rec)
-        caps = {c["name"]: c for c in self.adapter(rec.adapter).discover(rec.ref)}
-        permitted = sorted(c for c in caps if _allows(held, c))
+        caps = {c["name"]: c for c in self._discover(rec)}
+        permitted = sorted(c for c in caps if _permits(held, c))
         if name not in caps:
             raise HandleError("CAPABILITY_NOT_FOUND", f"{rec.type} has no capability {name}", details={"permitted": permitted})
-        if not _allows(held, name):
+        if not _permits(held, name):
             raise HandleError("CAPABILITY_DENIED", f"no grant for {name} on {rec.id}", details={"permitted": permitted})
         return caps[name]
 
@@ -186,7 +304,7 @@ class Runtime:
         brief: give each capability by name only (the HandleSummary of an OperationResult).
         """
         held = self._held(principal, rec)
-        caps = [c for c in self.adapter(rec.adapter).discover(rec.ref) if _allows(held, c["name"])]
+        caps = [c for c in self._discover(rec) if _permits(held, c["name"])]
         if brief:
             caps = [c["name"] for c in caps]
         handle = {
@@ -235,6 +353,10 @@ class Runtime:
 
         worker: the id of the remote worker that can reach the resource. The source is then a location on that worker.
         """
+        given = {"name": name, "adapter": adapter, "source": source, **({"worker": worker} if worker else {})}
+        return self._lifecycle(principal, "create", None, given, lambda: self._register(principal, name, adapter, source, worker))
+
+    def _register(self, principal: str, name: str, adapter: str, source: dict, worker: str | None) -> dict:
         a = self.adapter(f"{adapter}@{worker}" if worker else adapter)
         ref = a.open(source)
         rec = Record(
@@ -248,6 +370,9 @@ class Runtime:
 
     def release(self, principal: str, handle_id: str) -> None:
         """End a handle. Handles derived from it end too. The external resource stays."""
+        return self._lifecycle(principal, "release", handle_id, {}, lambda: self._release(principal, handle_id))
+
+    def _release(self, principal: str, handle_id: str) -> None:
         rec = self._resolve(principal, handle_id)
         if rec.owner != principal:
             raise HandleError("CAPABILITY_DENIED", "only the owner can release a handle")
@@ -256,6 +381,10 @@ class Runtime:
 
     def grant(self, principal: str, handle_id: str, to: str, capabilities: list[str]) -> None:
         """Give another principal some capabilities on a handle. A principal can give only what it holds."""
+        given = {"to": to, "capabilities": capabilities}
+        return self._lifecycle(principal, "grant", handle_id, given, lambda: self._grant(principal, handle_id, to, capabilities))
+
+    def _grant(self, principal: str, handle_id: str, to: str, capabilities: list[str]) -> None:
         rec = self._resolve(principal, handle_id)
         held = self._held(principal, rec)
         missing = [c for c in capabilities if not _allows(held, c)]
@@ -264,6 +393,9 @@ class Runtime:
         self.registry.grant(to, rec.id, capabilities)
 
     def revoke(self, principal: str, handle_id: str, from_: str) -> None:
+        return self._lifecycle(principal, "revoke", handle_id, {"from": from_}, lambda: self._revoke(principal, handle_id, from_))
+
+    def _revoke(self, principal: str, handle_id: str, from_: str) -> None:
         rec = self._resolve(principal, handle_id)
         if rec.owner != principal:
             raise HandleError("CAPABILITY_DENIED", "only the owner can revoke a grant")
@@ -281,12 +413,13 @@ class Runtime:
         """
         return self._perform(principal, operation, queue=True)
 
-    def _perform(self, principal: str, operation: dict, *, queue: bool, call: Call | None = None) -> dict:
-        started, t0 = _now(), time.perf_counter()
+    def _perform(self, principal: str, operation: dict, *, queue: bool, call: Call | None = None, within: str | None = None) -> dict:
+        """within: the log entry of the operation that this one runs inside (the graph.run of a graph node)."""
+        started, t0, entry = _now(), time.perf_counter(), new_id("log")
         bad = violations("operations", operation)
         op_id = new_id("op") if bad else operation["id"]
         result = {"operation_id": op_id, "status": "completed", "metadata": {}}
-        derived = None
+        derived = made = None
         try:
             if bad:
                 raise HandleError("INVALID_INPUT", bad[0], details={"violations": bad})
@@ -306,7 +439,7 @@ class Runtime:
                 result["status"], result["handles"] = "running", [self._view(principal, derived, brief=True)]
                 size, version = 0, ""
             else:
-                out = self._call_adapter(principal, rec, cap, input, execution.get("strategy") == "eager", call or Call())
+                out = self._call_adapter(principal, rec, cap, input, execution.get("strategy") == "eager", call or Call(), entry)
                 if isinstance(out, Known):  # job.result: the handle that the job made
                     made = self._resolve(principal, out.handle_id)
                     result["handles"] = [self._view(principal, made, brief=True)]
@@ -331,15 +464,16 @@ class Runtime:
             result["status"], result["error"] = "failed", e.to_dict()
         result["metadata"]["execution_time_ms"] = round((time.perf_counter() - t0) * 1000, 3)
         self.registry.log(
+            entry=entry, within=within, kind="operation",
             id=op_id, principal=principal, target=str(operation.get("target")), capability=str(operation.get("capability")),
             input=operation.get("input"), status=result["status"], error_code=result.get("error", {}).get("code"),
             started_at=started, duration_ms=result["metadata"]["execution_time_ms"],
             bytes_transferred=result["metadata"].get("bytes_transferred"),
-            source_version=result["metadata"].get("source_version"), result_handle=derived and derived.id,
+            source_version=result["metadata"].get("source_version"), result_handle=(derived or made) and (derived or made).id,
         )
         return result
 
-    def _call_adapter(self, principal: str, rec: Record, cap: dict, input: dict, eager: bool, call: Call):
+    def _call_adapter(self, principal: str, rec: Record, cap: dict, input: dict, eager: bool, call: Call, entry: str | None = None):
         """Call the adapter. With `limits.timeout_ms` on the capability, stop waiting at that time.
 
         At the time limit the runtime cancels the call (see Call) and gives OPERATION_TIMEOUT at once.
@@ -349,8 +483,10 @@ class Runtime:
 
         def run():
             try:
+                if cap["name"] in (LOG_OWN, LOG_AUDIT):  # the runtime keeps the log, not the adapter
+                    return self._read_log(principal, rec, cap["name"], input, cap["limits"]["max_output_bytes"])
                 if rec.adapter == "graph":  # the runtime does the capabilities of a graph (see graphs.py)
-                    return self._graph(principal, rec, cap["name"], input, call)
+                    return self._graph(principal, rec, cap["name"], input, call, entry)
                 return adapter.invoke(rec.ref, cap["name"], input, eager=eager, call=call)
             except HandleError:
                 raise
@@ -381,10 +517,10 @@ class Runtime:
             raise box["error"]
         return box["out"]
 
-    def _graph(self, principal: str, rec: Record, capability: str, input: dict, call: Call):
+    def _graph(self, principal: str, rec: Record, capability: str, input: dict, call: Call, entry: str | None):
         graph = rec.locator["graph"]
         if capability == "graph.run":
-            return Value(self.run_graph(principal, graph, call), rec.version)
+            return Value(self.run_graph(principal, graph, call, within=entry), rec.version)
         if capability == "graph.approve":
             if not any(n["id"] == input["node"] and n["kind"] == "operation" for n in graph["nodes"]):
                 raise HandleError("INVALID_INPUT", f"no operation node {input['node']!r} in this graph")
@@ -419,23 +555,31 @@ class Runtime:
             raise HandleError("INVALID_INPUT", f"{cap['name']} gives no stream: use operation.invoke")
         if "@" in rec.adapter:
             raise HandleError("INVALID_INPUT", "a stream runs only on a handle in the runtime process", details={"placement": "remote"})
-        self.registry.log(id=operation["id"], principal=principal, target=rec.id, capability=cap["name"], input=operation["input"],
-                          status="running", error_code=None, started_at=_now(), duration_ms=None, bytes_transferred=None,
-                          source_version=None, result_handle=None)
-        return self._events(rec, cap, input)
+        entry = new_id("log")
+        self.registry.log(entry=entry, kind="operation", id=operation["id"], principal=principal, target=rec.id, capability=cap["name"],
+                          input=operation["input"], status="running", error_code=None, started_at=_now(), duration_ms=None,
+                          bytes_transferred=None, source_version=None, result_handle=None)
+        return self._events(rec, cap, input, entry)
 
-    def _events(self, rec: Record, cap: dict, input: dict):
+    def _events(self, rec: Record, cap: dict, input: dict, entry: str):
         call, limit = Call(), cap["limits"]["max_output_bytes"]
+        t0, sent, status, code = time.perf_counter(), 0, "completed", None
         events = self.adapter(rec.adapter).stream(rec.ref, cap["name"], input, call)
         try:
             for event in events:
                 size = len(json.dumps(event.output).encode())
                 if size > limit:
                     raise HandleError("RESULT_TOO_LARGE", f"an event is {size} bytes and the limit is {limit}")
+                sent += size
                 yield {"output": event.output, "version": event.version}
+        except Exception as e:  # GeneratorExit is not an Exception: a subscriber that stops gives `completed`
+            status, code = "failed", getattr(e, "code", "ADAPTER_ERROR")
+            raise
         finally:
             call.cancel("cancel")
             events.close()
+            self.registry.finish(entry, status=status, error_code=code, bytes_transferred=sent,
+                                 duration_ms=round((time.perf_counter() - t0) * 1000, 3))
 
     def _derive(self, principal: str, rec: Record, more_parents: list, operation: dict, out: Derived, adapter: str | None = None) -> Record:
         parents = [rec.id, *more_parents]
@@ -577,7 +721,7 @@ class Runtime:
         rec = self.registry.get(handle_id)
         return rec is not None and bool(self._held(principal, rec)) and not self._released(rec)
 
-    def run_graph(self, principal: str, graph: dict, call: Call | None = None) -> dict:
+    def run_graph(self, principal: str, graph: dict, call: Call | None = None, within: str | None = None) -> dict:
         """Run a computation graph in dependency order. Reuse the result of each node that did not change.
 
         Each node gets a key. A resource node: its handle id and its version now. An operation node:
@@ -624,7 +768,7 @@ class Runtime:
                 try:
                     # From the interface, not from the grants: an action that the caller may not run still waits for an approval.
                     target = self._resolve(principal, targets[0])
-                    cap = next(c for c in self.adapter(target.adapter).discover(target.ref) if c["name"] == node["operation"]["capability"])
+                    cap = next(c for c in self._discover(target) if c["name"] == node["operation"]["capability"])
                     action, deterministic = is_action(cap), cap["execution"].get("deterministic", False)
                 except (HandleError, StopIteration):
                     action = deterministic = False  # the run below gives the error
@@ -635,15 +779,22 @@ class Runtime:
                 before = self.registry.node_run(principal, key)
                 if before and not all(self._held_live(principal, h["id"]) for h in before.get("handles", [])):
                     before = None
+                if node["operation"]["capability"] in (LOG_OWN, LOG_AUDIT):  # the log grows while the version of the handle stays
+                    before = None
                 if action and self.registry.take_approval(key, op_id, _now()) is None:
                     r = ({**before, "metadata": {**before["metadata"], "reused": True}} if before else
                          {"operation_id": op_id, "status": "waiting", "metadata": {}})
+                    if not before:  # the log shows an action that waits, so a reader knows that it did not run
+                        entry = new_id("log")
+                        self.registry.log(entry=entry, within=within, kind="operation", id=op_id, principal=principal, target=targets[0],
+                                          capability=node["operation"]["capability"], input=input, status="waiting", error_code=None,
+                                          started_at=_now(), duration_ms=None, bytes_transferred=None, source_version=None, result_handle=None)
                 elif before and not action:
                     r = {**before, "metadata": {**before["metadata"], "reused": True}}
                 else:
                     r = self._perform(principal, {
                         "id": op_id, "target": targets[0], "capability": node["operation"]["capability"], "input": input,
-                        "execution": {"mode": "auto", "strategy": "eager" if eager else "lazy"}}, queue=False, call=call)
+                        "execution": {"mode": "auto", "strategy": "eager" if eager else "lazy"}}, queue=False, call=call, within=within)
                     if r["status"] == "completed":
                         self.registry.put_node_run(principal, key, r, _now())
                 results[nid] = r

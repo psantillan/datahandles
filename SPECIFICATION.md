@@ -1,6 +1,6 @@
 # DataHandles Protocol Specification
 
-Version 0.3. The key words MUST, MUST NOT, SHOULD, and MAY have the meanings of RFC 2119.
+Version 0.4. The key words MUST, MUST NOT, SHOULD, and MAY have the meanings of RFC 2119.
 
 This file and the JSON Schemas in `spec/protocol/` define the protocol. The Python code in
 `packages/` is one implementation of it. Where the code and this file differ, this file governs
@@ -55,7 +55,9 @@ only. An `OperationResult` carries summaries. `handle.describe` returns the full
 
 Schema: `spec/protocol/capabilities.schema.json`.
 
-- `name` MUST have the form `<resource type>.<verb>`, for example `dataset.filter`.
+- `name` MUST have the form `<resource type>.<verb>`, for example `dataset.filter`. The two
+  capabilities of the operation log, `log.own` and `log.audit`, are the exception: the runtime
+  offers them on each handle (section 19).
 - `returns` is one of:
   - `value`: the operation sends a bounded observation to the caller.
   - `handle`: the operation derives a new handle. No resource data goes to the caller.
@@ -169,7 +171,10 @@ graph does not also get the right to approve its actions.
   8. Call the adapter, or put the operation in the job queue. If the capability declares
      `limits.timeout_ms`, the runtime MUST answer `OPERATION_TIMEOUT` at that time. The adapter
      call may continue after the answer (section 18 has how the reference runtime stops it).
-  9. Record the operation: principal, target, capability, input, status, duration, bytes, version.
+  9. Record the operation: principal, target, capability, input, status, duration, bytes, version
+     (section 19). A refused operation is recorded too.
+- `handle.create`, `handle.release`, `handle.grant`, and `handle.revoke` MUST also write a log
+  row, also when they fail.
 - An adapter never sees a principal or a grant. An adapter MUST keep each operation inside the
   resource of the handle (for example, a filesystem adapter MUST NOT follow a path or a symlink
   out of the root).
@@ -229,7 +234,7 @@ for an id that does not exist.
 | `Capability.returns` (`value`, `handle`) | The runtime must know before dispatch if an operation sends data to the caller. |
 | `{"$handle": id}` in operation input | One `target` field cannot express an operation on two handles. |
 | `execution.strategy` on an operation | The design document puts lazy and eager on the graph only. A single operation needs the same choice. |
-| `HandleSummary` in results | With full capability lists in each result, one five-operation question sent 23,094 bytes to the caller. With summaries it sends 3,729 bytes (`benchmarks/context_efficiency.py`, 10,000 rows). |
+| `HandleSummary` in results | With full capability lists in each result, one five-operation question sent 23,094 bytes to the caller. With summaries it sent 3,729 bytes (`benchmarks/context_efficiency.py`, 10,000 rows). |
 | `limits.max_output_bytes` required for value capabilities | "Bounded output" must be a property that the runtime enforces, not a habit of each adapter. |
 | No-grant answer is `HANDLE_NOT_FOUND` | A principal must not learn which ids exist. |
 | `Handle.parents` | Lineage and grant inheritance both need the derivation edges. |
@@ -248,6 +253,12 @@ for an id that does not exist.
 | A failed or waiting node blocks only the nodes after it | A waiting action must not stop a simulation branch that does not depend on it. |
 | `execution.deterministic` on a capability | A recorded window of a live source never changes, but the version of the source does. Without this flag, a graph would record the window again on each run. |
 | Streams use `execution.mode` `stream` and `operation.subscribe` | The schema reserved the mode. A stream is many bounded values, so it is not one OperationResult. |
+| The operation log is two capabilities on each handle, not a protocol method | As capabilities, the log views get grants, the tool surface for a model, and the `HANDLE_NOT_FOUND` rule with no new mechanism, as jobs did. An owner can grant the audit view alone, without the right to change the resource. |
+| `log.own` needs no grant | A principal that edits a graph must see if its edit held, also when it holds only `graph.set` and `graph.run`. |
+| The audit view follows the `parents` edges to handles that other principals made | Most work happens on derived handles, and a derived handle belongs to the principal that made it. Without this rule, the owner of a resource would see only the first derivation. Grants follow the same edges. |
+| A log row names the row that it was made inside (`within`) | A graph node operation targets a resource handle, not the graph. A reader of the graph must see which node failed. |
+| The log cursor is the id of a row, and a view has no counter | A counter that counts the rows of each principal would show, in its gaps, how active the other principals are. |
+| A log row gives the hash of its full input | A cut input cannot be compared. The hash lets a caller find the same edit again. |
 | `handle.describe` with `detail` `brief` and `capability` | One full description of a dataset handle cost a 9B model about 1,230 prompt tokens (the v0.2 run, `benchmarks/describe_comparison/dataset_full_describe.json`; `benchmarks/DESCRIBE_COMPARISON.md`). Most calls need the schema of one capability. |
 
 ## 13. Not in the reference runtime yet
@@ -379,7 +390,7 @@ the type `object` with these capabilities. `path` is a list of keys and list ind
 | `object.equals` | `other` (a `$handle` input) | value: `{"equal": true or false}` |
 | `object.snapshot` | | handle: kind `result`, consistency `snapshot`, a copy at the current version |
 
-The suite tests sections 2 to 11, 14, and 16. It does not test section 15 through HTTP, because
+The suite tests sections 2 to 11, 14, 16, and 19. It does not test section 15 through HTTP, because
 a caller cannot see the place of a handle.
 
 The suite ran against the reference runtime only: in process, behind its HTTP server, and with
@@ -434,3 +445,58 @@ web page) gives a new version on each observe, and a graph never reuses its resu
 exception, like the job adapter: the runtime does its capabilities, because a graph runs
 operations for a principal.
 
+## 19. Operation log
+
+The runtime keeps one log row for each operation (section 8, step 9) and for each lifecycle method.
+A caller reads the log through two capabilities that the runtime offers on each handle, job and
+graph handles included. Both return a value.
+
+| Capability | Who can invoke it | Rows |
+|---|---|---|
+| `log.own` | Each principal that holds a capability on the handle. It needs no grant. | The rows of the caller in the scope of the handle |
+| `log.audit` | A principal that holds `log.audit` on the handle. The owner holds it through `*`, and can grant it alone. | The rows of each principal in the scope of the handle |
+
+**Scope.** A row is in the scope of a handle H when one of these is true:
+
+- Its target is H, or a handle that has H as an ancestor through `parents`, through any parent and
+  at any depth. This includes handles that another principal made, and job handles.
+- It was made inside a row that is in the scope (`within`). The operation of a graph node is made
+  inside the `graph.run` of its graph.
+
+A principal that holds nothing on H gets `HANDLE_NOT_FOUND`, as for each operation.
+
+**Input.** All fields are optional.
+
+| Field | Meaning |
+|---|---|
+| `after` | The `next` value of the page before. A row that is not in this view gives `INVALID_INPUT`, the same answer as a row that does not exist. |
+| `limit` | The largest number of rows in the page. |
+| `target`, `capability`, `status`, `error_code`, `kind` | Only rows with this value. |
+
+**Output.** `{"rows": [...], "next": ...}`, oldest row first. `next` is there when more rows can
+follow. The runtime ends a page before the output passes `limits.max_output_bytes`.
+
+**Row.**
+
+| Field | Meaning |
+|---|---|
+| `entry` | The id of the row. A view MUST NOT show a counter that counts the rows of all principals. |
+| `kind` | `operation`, `create`, `release`, `grant`, or `revoke` |
+| `operation_id` | The id of the operation (kind `operation` only) |
+| `within` | The `entry` of the row that this row was made inside |
+| `principal`, `target`, `capability` | Who made the request, on which handle, and with which capability |
+| `status` | `completed`, `failed`, `running` (a stream until the subscriber stops), or `waiting` (a graph action with no approval: it did not run) |
+| `error_code` | The error code of a failed row |
+| `started_at`, `duration_ms`, `bytes_transferred`, `source_version` | As in the OperationResult |
+| `result_handle` | The handle that the operation made, that `job.result` gave, or that `handle.create` made |
+| `input` | The input. For a lifecycle row: `{name, adapter, source, worker}` for `create`, `{to, capabilities}` for `grant`, `{from}` for `revoke`, and `{}` for `release`. |
+| `input_sha256` | The SHA-256 of the canonical JSON of the full input: keys sorted, no white space |
+| `truncated`, `input_bytes`, `input_preview` | For an input larger than the limit of the runtime: `input` is absent, and the preview has its first bytes |
+
+**Rules.**
+
+- A read of the log is an operation, so it writes a row too.
+- A graph MUST NOT reuse the result of a log read. The log grows while the version of the handle
+  stays the same.
+- The reference runtime gives 20 rows in a page by default and 200 at most, and cuts an input
+  larger than 512 bytes. These numbers are assumed, not measured.
