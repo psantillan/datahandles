@@ -83,11 +83,11 @@ dataset as JSON would cost about 353,667 tokens (35.4 tokens for each row, measu
 times the context window.
 
 `handle_describe` gives a brief form, and an input error carries the schema of its capability. With
-the full describe of v0.2 the same benchmark was 12 of 12 with higher prompts. The wrong run here
+the full describe the same benchmark was 12 of 12 with higher prompts. The wrong run here
 joined the unfiltered events table. [`benchmarks/DESCRIBE_COMPARISON.md`](benchmarks/DESCRIBE_COMPARISON.md)
 has the three conditions side by side.
 
-The calls of the join question on 100,000,000 rows in the v0.2 run, with the full describe (ids shortened):
+The calls of the join question on 100,000,000 rows, in a run with the full describe (ids shortened):
 
 ```text
 Q: Which 3 countries have the most revenue from 'purchase' events? ...
@@ -116,12 +116,21 @@ version. The peak prompt was 3,179 to 3,257 tokens. Method and every message:
 
 ### A graph over a sensor, a simulation, and an action
 
-The same model got the v0.3 task through MCP: record a window of a live room, start a simulation
+The same model got a graph task through MCP: record a window of a live room, start a simulation
 from its mean temperature by editing one node of a graph, run the graph again, and report the
 prediction. In 5 of 5 runs the node that did not change was reused, the changed nodes ran, the
 two forks of the simulation differed, and the heater action waited for an approval that the agent
 could not give. The peak prompt was at most 6,509 tokens.
 [`benchmarks/AGENT_V03_RESULTS.md`](benchmarks/AGENT_V03_RESULTS.md) has every check.
+
+## Install
+
+```
+pip install "datahandles @ git+https://github.com/psantillan/datahandles@v0.4.1"
+```
+
+Python 3.11 or newer. The extras `duckdb`, `mcp` and `browser` add the DuckDB adapter, the MCP server and the
+browser adapter: `pip install "datahandles[duckdb,mcp] @ git+https://github.com/psantillan/datahandles@v0.4.1"`.
 
 ## Example
 
@@ -243,11 +252,11 @@ DATAHANDLES_TOKEN=a-long-random-token python -m datahandles.protocols.mcp --url 
 
 The first form opens a local state directory. The second form connects to a runtime over HTTP.
 `--register weather=api:https://api.open-meteo.com/v1` gives the model an HTTP API in the same way.
-The server uses stdio and needs the `mcp` package (`pip install -e ".[mcp]"`).
+The server uses stdio and needs the extra `mcp`.
 
 ## State
 
-Version 0.4.0 (protocol version 0.4). Built: the protocol schemas, the runtime, eight adapters, replayable graphs with
+Protocol version 0.4. Built: the protocol schemas, the runtime, eight adapters, replayable graphs with
 approvals for actions, streams and recorded windows, the registry and its operation log, async jobs on several threads
 with cancel and time limits, the remote worker, the HTTP transport, the MCP adapter, a Python
 client, installed adapters, and a conformance suite.
@@ -264,7 +273,7 @@ versions, and the limits of the current code.
 | [`ROADMAP.md`](ROADMAP.md) | What is built, what is not, known limits |
 | [`SECURITY.md`](SECURITY.md) | What the runtime protects and what it does not |
 
-## Run it
+## Run it from a checkout
 
 ```
 python3 -m venv .venv
@@ -289,7 +298,8 @@ OLLAMA_URL=http://localhost:11434 OLLAMA_MODEL=ornith-1.5:9b .venv/bin/python be
   implementation exists yet.
 - The mutation check removes 101 guards from the source, one at a time, and confirms that a test
   fails for each.
-- Install from a checkout with `-e`. The schemas load from `spec/protocol/` in the repository tree.
+- The schemas in `spec/protocol/` ship in the installed package. A CI job installs the package with no
+  checkout and loads them.
 - The benchmark argument is the largest row count. `100000000` needs about 11 GB of free disk.
 - The agent benchmarks need an Ollama server and a model that supports tool calls.
 
