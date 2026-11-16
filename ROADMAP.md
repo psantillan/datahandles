@@ -219,5 +219,3 @@ Browser:
 Install:
 
 - The git adapter needs git 2.24 or newer (`--end-of-options`). The tests ran on git 2.43.
-- The JSON Schemas load from `spec/protocol/` in the repository tree. Use a checkout with an
-  editable install (`pip install -e .`). A wheel does not carry the schemas.
